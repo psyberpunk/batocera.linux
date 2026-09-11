@@ -15,7 +15,7 @@ system behaviour, package names or internal paths.
 | File | Use |
 |---|---|
 | `Castillo.png` (8000×4500, alpha) | static splash: U-Boot boot logo, `boot-logo.png`, EmulationStation splash |
-| `RGM-bco.svg` / `RGM-bco.png` (white, transparent) | logo inside the Carbon theme (dark background) |
+| `RGM-bco.svg` (white, transparent) | ES fallback splash `resources/splash.svg` |
 | `retrogamersmexico.mp4` (1920×1080, 15 fps, h264 yuv444p, 32.5 s) | boot video splash (mpv) |
 
 `Neon.png`, `CastilloNoche.png`, `RGM-ngo.*` are not used.
@@ -30,10 +30,10 @@ supplied, for personal use only; its content is not modified beyond transcoding 
 | Boot partition label | `RETROGAMERS` (FAT32 limit: 11 chars; `RETROGAMERSMEXICO` does not fit) |
 | Userdata partition label | `SHARE` (unchanged) |
 | Hostname | `RETROGAMERSMEXICO` |
-| Version string | `RGM-1.0` |
+| Version string | `1.0` (ES footer = `<about.info> V<version> <date>`; the RGM name comes from `about.info`) |
 | Splash video | trimmed to ~15 s keeping the final RGM card, H.264 `yuv420p` 1080p 30 fps AAC |
 | Online updates | disabled (`updates.enabled=0`) so ES never offers to overwrite the build with upstream Batocera |
-| Theme | Carbon, vendored locally, only the Batocera logo swapped for RGM; colours unchanged |
+| Theme | Carbon, upstream unchanged; RGM branding applied to ES built-in splash resources |
 
 ## Components
 
@@ -48,7 +48,7 @@ supplied, for personal use only; its content is not modified beyond transcoding 
   short audio fade-in at the cut.
 - `images/logo.png`: replaced by `Castillo.png` downscaled to 1920×1080 (installed as
   `/usr/share/batocera/splash/boot-logo.png`).
-- Version subtitle (`splash.srt`) keeps working unchanged; it will read `RGM-1.0 <date>`.
+- Version subtitle (`splash.srt`) keeps working unchanged; it will read `1.0 <date>`.
 - The other three upstream videos are left in place (unused by this target).
 
 ### 2. U-Boot boot logo (`board/batocera/amlogic/s905gen3/tvbox-gen3/boot/boot-logo.bmp.gz`)
@@ -59,29 +59,30 @@ supplied, for personal use only; its content is not modified beyond transcoding 
 
 ### 3. EmulationStation
 
-#### 3a. Theme (`package/batocera/emulationstation/es-theme-carbon`)
+Finding (plan phase): the Carbon theme at the pinned commit contains no Batocera-branded
+asset of its own. The only Batocera logo the user sees inside ES is the built-in resource
+`resources/logo.png` (1920×1080), which Carbon's `_splash.xml` shows as the splash
+background via `:/logo.png`. Therefore Carbon stays upstream (no vendoring) and the
+branding is done at the ES package level:
 
-- Switch from `github` download to a vendored snapshot: `es-theme-carbon.mk` gets
-  `ES_THEME_CARBON_SITE_METHOD = local`, `ES_THEME_CARBON_SITE = $(BR2_EXTERNAL_BATOCERA_PATH)/package/batocera/emulationstation/es-theme-carbon/src`.
-- `src/` = checkout of upstream commit `b921e1734d88d6bc7b9e8cb97dd8f8b91ba2058a` with the
-  Batocera logo asset(s) replaced by `RGM-bco.svg` (same filename(s) and viewBox aspect so
-  every view that references them keeps its layout). Exact files identified at implementation
-  by grepping the theme for the logo references (`art/logo*.svg` and any `batocera` named art).
-- Theme `theme.xml` `<name>`/description strings untouched.
-
-#### 3b. ES splash (`package/batocera/emulationstation/batocera-emulationstation`)
-
-- ES shows its own splash (`resources/splash.svg`) while loading gamelists (no `--no-splash`
-  on this target). Replace it with `Castillo.png`:
-  - install `splash.png` (1920×1080) into `/usr/share/emulationstation/resources/`;
-  - add a small patch to the ES sources changing the splash resource path from
-    `:/splash.svg` to `:/splash.png` (exact file confirmed at implementation; expected
-    `es-core/src/Window.cpp` or equivalent). If batocera-ES already supports a raster splash
-    or a theme-driven splash view, prefer that and skip the patch.
+- `package/batocera/emulationstation/batocera-emulationstation/rgm/logo.png`:
+  `Castillo.png` downscaled to 1920×1080. Installed over
+  `/usr/share/emulationstation/resources/logo.png` by a new post-install hook
+  `BATOCERA_EMULATIONSTATION_RGM_BRANDING` in `batocera-emulationstation.mk`.
+- `package/batocera/emulationstation/batocera-emulationstation/rgm/splash.svg`:
+  copy of `RGM-bco.svg` (white logo, transparent). Installed over
+  `/usr/share/emulationstation/resources/splash.svg` (720×720 fallback splash used when a
+  theme has no splash view) by the same hook.
+- `package/batocera/emulationstation/batocera-emulationstation/rgm/about.info`: text
+  `RETRO GAMERS MEXICO`, installed to `/usr/share/emulationstation/about.info` by the same
+  hook. `ApiSystem::getApplicationName()` returns this file's content, and `GuiMenu` then
+  renders the main-menu footer as `RETRO GAMERS MEXICO V1.0 <date>` instead of
+  `BATOCERA.LINUX ES V…`.
+- No C++ patch, no theme edit. `es-theme-carbon.mk` unchanged.
 
 ### 4. System identity
 
-- `package/batocera/core/batocera-system/batocera-system.mk`: `BATOCERA_SYSTEM_VERSION = RGM-1.0`.
+- `package/batocera/core/batocera-system/batocera-system.mk`: `BATOCERA_SYSTEM_VERSION = 1.0`.
 - `package/batocera/core/batocera-system/batocera.conf`:
   `system.hostname=RETROGAMERSMEXICO`, `updates.enabled=0`.
 - `board/batocera/fsoverlay/etc/profile.d/30-welcome.sh`: ASCII banner → "RETRO GAMERS MEXICO",
@@ -103,7 +104,7 @@ supplied, for personal use only; its content is not modified beyond transcoding 
 ### 6. Not changed
 
 - `SHARE` label, `/userdata`, `/boot` layout, package/config names, `batocera-*` command names.
-- Strings hard-coded inside the ES binary (e.g. "batocera.linux" in some menus).
+- Other strings hard-coded inside the ES binary (menu entries such as "BATOCERA SPLASH IMAGE").
 - Kernel, emulators, drivers.
 
 ## Build
@@ -114,8 +115,8 @@ make s905gen3-build            # Docker; first run takes hours, ~60–80 GB disk
 ```
 Output: `output/s905gen3/images/batocera/images/s905gen3/batocera-s905gen3-*.img.gz`.
 
-Commits on branch `rgm`, one per component (splash video, U-Boot logo, theme, ES splash,
-identity, partition label).
+Commits on branch `rgm`, one per component (splash video, splash image, U-Boot logo,
+ES splash, identity, partition label).
 
 ## Verification
 
@@ -126,8 +127,8 @@ Before building:
 - `make s905gen3-config` completes with no Kconfig warnings about the splash group.
 
 After building / flashing an SD:
-- Power-on sequence: RGM U-Boot logo → RGM video → RGM "CARGANDO…" ES splash → Carbon with RGM logo.
-- `hostname` = `RETROGAMERSMEXICO`; ES → System settings shows `RGM-1.0`.
+- Power-on sequence: RGM U-Boot logo → RGM video → RGM "CARGANDO…" ES splash → Carbon menu.
+- `hostname` = `RETROGAMERSMEXICO`; ES main-menu footer reads `RETRO GAMERS MEXICO V1.0 <date>`.
 - `blkid` on the SD shows `LABEL="RETROGAMERS"` for the boot partition; system boots to ES.
 - Plugging a USB stick still auto-mounts (storage-manager regex OK).
 - ES does not prompt for an update.
