@@ -105,7 +105,7 @@ get_storage_size_kb() {
 # 1) Check for existing BATOCERA or SHARE partitions
 mapfile -t part_names < <(parted -m -s "$DEVICE" print | tail -n +2 | cut -d: -f6)
 for name in "${part_names[@]}"; do
-  if [[ "$name" == "BATOCERA" || "$name" == "SHARE" ]]; then
+  if [[ "$name" == "BATOCERA" || "$name" == "RETROGAMERS" || "$name" == "SHARE" ]]; then
     echo "An installation already exists (found partition named '$name'). Exiting."
     exit 0
   fi
@@ -221,7 +221,7 @@ if mount | grep -q "^${BT_PART_DEV} "; then
   echo "Auto-unmounting ${BT_PART_DEV}..."
   umount "${BT_PART_DEV}"
 fi
-mkfs.vfat -F 32 -n BATOCERA "${BT_PART_DEV}" &>/dev/null
+mkfs.vfat -F 32 -n RETROGAMERS "${BT_PART_DEV}" &>/dev/null
 
 # 8) Create SHARE partition (Rest of the disk)
 echo "Creating SHARE partition #$SH_NUM (from ${BT_END_MB}MiB to end)..."

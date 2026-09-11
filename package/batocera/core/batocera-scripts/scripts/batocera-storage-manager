@@ -399,7 +399,7 @@ handle_partition_event() {
     done < <(blkid -o export "$part_dev")
 
     # Standard Batocera drive check
-    if [[ "$label" =~ ^(SHARE|BATOCERA)$ ]] && is_system_disk "$parent"; then
+    if [[ "$label" =~ ^(SHARE|BATOCERA|RETROGAMERS)$ ]] && is_system_disk "$parent"; then
         log_msg "SKIP: [$devname] System partition detected parent:$parent (label: $label)."
         exit 0
     fi
