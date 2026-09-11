@@ -101,7 +101,18 @@ branding is done at the ES package level:
 `genimage.cfg` and `uEnv.txt` must always agree, otherwise the initramfs waits forever for
 `LABEL=…`. Other boards' `label=BATOCERA` lines are not touched.
 
-### 6. Not changed
+### 6. PS3 clone controllers (BlueZ)
+
+User-supplied `fake-ps3.patch` (BlueZ 5.61) makes cable pairing accept any pad with Sony's
+VID/PID `054c:0268` regardless of its reported name. Batocera builds BlueZ 5.84 and already
+carries `board/batocera/patches/bluez5_utils/001-trust-sixaxis.patch` and
+`002-input-sixaxis.patch` (adds the "GUO HUA PS3 GamePad" name). The patch is rebased as
+`003-sixaxis-clone-fallback.patch`: after the name-matching loop in
+`profiles/input/sixaxis.h::get_pairing()`, return `&devices[0]` (reference Sixaxis entry)
+for `054c:0268`. Index 0 is used instead of the original `devices[1]` because the table
+order differs in 5.84. `BR2_GLOBAL_PATCH_DIR` already includes `board/batocera/patches`.
+
+### 7. Not changed
 
 - `SHARE` label, `/userdata`, `/boot` layout, package/config names, `batocera-*` command names.
 - Other strings hard-coded inside the ES binary (menu entries such as "BATOCERA SPLASH IMAGE").
@@ -116,7 +127,7 @@ make s905gen3-build            # Docker; first run takes hours, ~60–80 GB disk
 Output: `output/s905gen3/images/batocera/images/s905gen3/batocera-s905gen3-*.img.gz`.
 
 Commits on branch `rgm`, one per component (splash video, splash image, U-Boot logo,
-ES splash, identity, partition label).
+ES splash, identity, partition label, BlueZ patch).
 
 ## Verification
 
@@ -132,3 +143,4 @@ After building / flashing an SD:
 - `blkid` on the SD shows `LABEL="RETROGAMERS"` for the boot partition; system boots to ES.
 - Plugging a USB stick still auto-mounts (storage-manager regex OK).
 - ES does not prompt for an update.
+- A PS3 clone pad pairs over USB cable and then works over Bluetooth.

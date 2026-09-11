@@ -48,6 +48,7 @@
 | `board/batocera/amlogic/s905gen3/tvbox-gen3/boot/uEnv.txt` | 6 | kernel cmdline `label=` |
 | `package/batocera/core/batocera-scripts/scripts/batocera-storage-manager` | 6 | system-partition regex |
 | `package/batocera/core/batocera-scripts/scripts/batocera-install-internal` | 6 | internal install label |
+| `board/batocera/patches/bluez5_utils/003-sixaxis-clone-fallback.patch` | 7 | BlueZ: accept PS3 clone pads with unknown names (new) |
 
 ---
 
@@ -514,7 +515,76 @@ Claude-Session: https://claude.ai/code/session_01RKEkmYSW3qee8pxSFTtew4"
 
 ---
 
-### Task 7: Configure and build the image
+### Task 7: PS3 clone controller pairing (BlueZ patch)
+
+**Files:**
+- Create: `board/batocera/patches/bluez5_utils/003-sixaxis-clone-fallback.patch`
+
+**Interfaces:**
+- Consumes: user-supplied `~/iaapps/retrogamersmexico/fake-ps3.patch` (written against BlueZ 5.61; `devices[1]` there). Buildroot builds `bluez5_utils` 5.84, where `get_pairing()` matches on the device *name* suffix, so unnamed clones with Sony's VID/PID `054c:0268` return NULL and cable pairing fails.
+- Produces: a `-p1` patch (applied by `BR2_GLOBAL_PATCH_DIR` after `001-*` and `002-*`) adding a fallback in `profiles/input/sixaxis.h`: any `054c:0268` device returns `&devices[0]` (the reference "Sony PLAYSTATION(R)3 Controller" entry). `devices[0]` is used instead of the original `devices[1]` because the table order differs in 5.84.
+
+- [ ] **Step 1: Write the patch**
+
+Create `board/batocera/patches/bluez5_utils/003-sixaxis-clone-fallback.patch` with exactly this content (leading space on context lines, tabs preserved as in the source):
+```
+Accept any PS3 controller clone that reports Sony's VID/PID (054c:0268)
+but a device name not listed in the pairing table. Return the reference
+Sixaxis entry so cable pairing works for unnamed clones.
+
+--- a/profiles/input/sixaxis.h
++++ b/profiles/input/sixaxis.h
+@@ -87,6 +87,10 @@ get_pairing(uint16_t vid, uint16_t pid, const char *name)
+ 		return &devices[i];
+ 	}
+ 
++	/* PS3 clones: Sony VID/PID with an arbitrary name */
++	if (vid == 0x054c && pid == 0x0268)
++		return &devices[0];
++
+ 	return NULL;
+ }
+ 
+```
+A ready-made copy exists at `/tmp/claude-1000/-home-retrogamex/f2289cce-87c4-458c-bff0-9314bde91d31/scratchpad/003-sixaxis-clone-fallback.patch`; `cp` it if present.
+
+- [ ] **Step 2: Dry-run against upstream 5.84 with Batocera's 001/002 applied first**
+
+Run:
+```bash
+T=$(mktemp -d); mkdir -p "$T/profiles/input" "$T/plugins"
+curl -sL "https://git.kernel.org/pub/scm/bluetooth/bluez.git/plain/profiles/input/sixaxis.h?h=5.84" -o "$T/profiles/input/sixaxis.h"
+cd "$T" && patch -p1 -s < /home/retrogamex/batocera.linux/board/batocera/patches/bluez5_utils/002-input-sixaxis.patch   && patch -p1 < /home/retrogamex/batocera.linux/board/batocera/patches/bluez5_utils/003-sixaxis-clone-fallback.patch   && grep -n -A2 "PS3 clones" profiles/input/sixaxis.h
+cd /home/retrogamex/batocera.linux; rm -rf "$T"
+```
+Expected: `patching file profiles/input/sixaxis.h` / `Hunk #1 succeeded at 95 (offset 8 lines).` and the grep shows the `if (vid == 0x054c && pid == 0x0268)` / `return &devices[0];` lines. No `FAILED`/`.rej`.
+
+- [ ] **Step 3: Confirm the patch dir is already wired for this target**
+
+Run:
+```bash
+grep -n "BR2_GLOBAL_PATCH_DIR" configs/batocera-s905gen3.board
+ls board/batocera/patches/bluez5_utils/
+```
+Expected: the `.board` line includes `board/batocera/patches`; the dir lists `001-trust-sixaxis.patch 002-input-sixaxis.patch 003-sixaxis-clone-fallback.patch`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add board/batocera/patches/bluez5_utils/003-sixaxis-clone-fallback.patch
+git commit -m "bluez: accept PS3 clone controllers with unknown names
+
+Clones report Sony's 054c:0268 but arbitrary device names, so the
+name-suffix match in get_pairing() fails. Fall back to the reference
+Sixaxis entry for that VID/PID. Rebased from a BlueZ 5.61 patch onto 5.84.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01RKEkmYSW3qee8pxSFTtew4"
+```
+
+---
+
+### Task 8: Configure and build the image
 
 **Files:** none modified (build output goes to `output/s905gen3/`, git-ignored).
 
@@ -548,6 +618,13 @@ grep -n "BATOCERA_SPLASH_VIDEO\|BATOCERA_SPLASH_MPV=" output/s905gen3/.config
 Expected: `BR2_PACKAGE_BATOCERA_SPLASH_VIDEO_1080P30=y` and `BR2_PACKAGE_BATOCERA_SPLASH_MPV=y`. No `HEVC_1080P60=y`.
 
 - [ ] **Step 4: Full build (background, hours)**
+
+After the build, confirm the BlueZ patch was applied:
+```bash
+grep -n "PS3 clones" output/s905gen3/build/bluez5_utils-5.84/profiles/input/sixaxis.h
+```
+Expected: one matching line.
+
 
 Run:
 ```bash
@@ -589,7 +666,7 @@ cd /home/retrogamex/batocera.linux
 
 ---
 
-### Task 8: Flash and verify on the TV box (manual)
+### Task 9: Flash and verify on the TV box (manual)
 
 **Files:** none.
 
@@ -613,6 +690,7 @@ Expected in order: Castillo U-Boot logo → RGM video (~15 s, ends on RGM card) 
 - ES → Main menu: footer reads `RETRO GAMERS MEXICO V1.0 <date>`; System settings → Information shows `1.0 …`.
 - `ssh root@<ip>` (password `linux`): banner shows RETRO GAMERS MEXICO; `hostname` → `RETROGAMERSMEXICO`; `blkid | grep -i retrogamers` shows the boot partition.
 - Insert a USB stick: it auto-mounts under `/media` (storage-manager regex OK).
+- Plug a PS3 clone pad by USB cable while Bluetooth is on, then unplug: it pairs and works wirelessly (`bluetoothctl devices` lists it as trusted).
 - ES shows no update prompt after boot.
 
 - [ ] **Step 5: Record results**
