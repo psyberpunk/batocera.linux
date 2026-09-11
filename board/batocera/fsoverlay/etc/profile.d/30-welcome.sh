@@ -1,14 +1,12 @@
-# Add BATOCERA logo and some alias, sourcing of $HOME/.bashrc can be added to $HOME/.profile
+# Add RETRO GAMERS MEXICO banner, sourcing of $HOME/.bashrc can be added to $HOME/.profile
 echo '
-      ____    __   ____  _____  ___  ____  ____    __   
-     (  _ \  /__\ (_  _)(  _  )/ __)( ___)(  _ \  /__\  
-      ) _ < /(__)\  )(   )(_)(( (__  )__)  )   / /(__)\ 
-     (____/(__)(__)(__) (_____)\___)(____)(_)\_)(__)(__)
-                 R E A D Y   T O   R E T R O
+  ____  _____ _____ ____   ___     ____    _    __  __ _____ ____  ____
+ |  _ \| ____|_   _|  _ \ / _ \   / ___|  / \  |  \/  | ____|  _ \/ ___|
+ | |_) |  _|   | |  | |_) | | | | | |  _  / _ \ | |\/| |  _| | |_) \___ \
+ |  _ <| |___  | |  |  _ <| |_| | | |_| |/ ___ \| |  | | |___|  _ < ___) |
+ |_| \_\_____| |_|  |_| \_\\___/   \____/_/   \_\_|  |_|_____|_| \_\____/
+                          M  E  X  I  C  O
 '
-echo
-echo "-- type 'batocera-check-updates' to check the system setted branch --"
-echo "-- usage of 'butterfly' or 'stable' switch will force-check branch --"
 echo
 batocera-info 2>/dev/null
 echo "OS version: $(batocera-version)"
