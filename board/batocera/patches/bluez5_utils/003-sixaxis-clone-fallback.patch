@@ -1,0 +1,17 @@
+Accept any PS3 controller clone that reports Sony's VID/PID (054c:0268)
+but a device name not listed in the pairing table. Return the reference
+Sixaxis entry so cable pairing works for unnamed clones.
+
+--- a/profiles/input/sixaxis.h
++++ b/profiles/input/sixaxis.h
+@@ -87,6 +87,10 @@ get_pairing(uint16_t vid, uint16_t pid, const char *name)
+ 		return &devices[i];
+ 	}
+ 
++	/* PS3 clones: Sony VID/PID with an arbitrary name */
++	if (vid == 0x054c && pid == 0x0268)
++		return &devices[0];
++
+ 	return NULL;
+ }
+ 
