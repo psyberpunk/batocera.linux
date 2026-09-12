@@ -1,4 +1,4 @@
 LINUX=/boot/linux
 INITRD=/boot/uInitrd
-FDT=/boot/meson-sm1-h96-max.dtb
+FDT=/boot/meson-sm1-tvbox-gen3.dtb
 APPEND=label=RETROGAMERS rootwait quiet loglevel=0 console=tty3 console=ttyAML0,115200n8 vt.global_cursor_default=0 video=Composite-1:d

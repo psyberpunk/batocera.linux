@@ -39,6 +39,8 @@ DTBs=(
     meson-sm1-x96-max-plus.dtb
     meson-sm1-x96-max-plus-100m.dtb
     meson-sm1-x96-max-plus-2101.dtb
+    meson-sm1-tvbox-gen3.dtb
+    meson-sm1-tvbox-gen3-intphy.dtb
 )
 
 for DTB in "${DTBs[@]}"

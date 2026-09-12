@@ -1,0 +1,54 @@
+diff --git a/arch/arm64/boot/dts/amlogic/Makefile b/arch/arm64/boot/dts/amlogic/Makefile
+index 726e273..7c8f9fe 100644
+--- a/arch/arm64/boot/dts/amlogic/Makefile
++++ b/arch/arm64/boot/dts/amlogic/Makefile
+@@ -81,3 +81,5 @@ dtb-$(CONFIG_ARCH_MESON) += meson-sm1-sei610.dtb
+ dtb-$(CONFIG_ARCH_MESON) += meson-sm1-x96-air-gbit.dtb
+ dtb-$(CONFIG_ARCH_MESON) += meson-sm1-x96-air.dtb
+ dtb-$(CONFIG_ARCH_MESON) += meson-sm1-x96-max-plus-2101.dtb
++dtb-$(CONFIG_ARCH_MESON) += meson-sm1-tvbox-gen3.dtb
++dtb-$(CONFIG_ARCH_MESON) += meson-sm1-tvbox-gen3-intphy.dtb
+diff --git a/arch/arm64/boot/dts/amlogic/meson-sm1-tvbox-gen3-intphy.dts b/arch/arm64/boot/dts/amlogic/meson-sm1-tvbox-gen3-intphy.dts
+new file mode 100644
+index 0000000..5327371
+--- /dev/null
++++ b/arch/arm64/boot/dts/amlogic/meson-sm1-tvbox-gen3-intphy.dts
+@@ -0,0 +1,17 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++/*
++ * Generic S905X3 TV box (X96 Max+ class) using the SoC internal
++ * 100M ethernet PHY (RMII) instead of the external RGMII PHY.
++ * Recovered from the original RGM tvbox-gen3-intphy dtb.
++ */
++/dts-v1/;
++
++#include "meson-sm1-x96-max-plus.dts"
++
++&ethmac {
++	/delete-property/ pinctrl-0;
++	/delete-property/ pinctrl-names;
++	/delete-property/ amlogic,tx-delay-ns;
++	phy-handle = <&internal_ephy>;
++	phy-mode = "rmii";
++};
+diff --git a/arch/arm64/boot/dts/amlogic/meson-sm1-tvbox-gen3.dts b/arch/arm64/boot/dts/amlogic/meson-sm1-tvbox-gen3.dts
+new file mode 100644
+index 0000000..fe9c4b6
+--- /dev/null
++++ b/arch/arm64/boot/dts/amlogic/meson-sm1-tvbox-gen3.dts
+@@ -0,0 +1,15 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++/*
++ * Generic S905X3 TV box (X96 Air class) with tuned VDDCPU regulator.
++ * Recovered from the original RGM tvbox-gen3 dtb: identical to
++ * meson-sm1-x96-air except for the vddcpu range and PWM period.
++ */
++/dts-v1/;
++
++#include "meson-sm1-x96-air.dts"
++
++&vddcpu {
++	regulator-min-microvolt = <721000>;
++	regulator-max-microvolt = <1022000>;
++	pwms = <&pwm_AO_cd 1 1250 0>;
++};
