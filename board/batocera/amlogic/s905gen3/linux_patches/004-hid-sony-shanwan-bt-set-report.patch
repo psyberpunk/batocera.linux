@@ -1,0 +1,27 @@
+HID: sony: send SHANWAN output reports over the control channel on BT
+
+The SHANWAN_GAMEPAD quirk routes LED/rumble output reports through the
+interrupt channel. The SHANWAN PS3 clones used by RGM drop the Bluetooth
+link within a second of receiving that packet (btmon: pad answers with a
+spurious handshake and sends L2CAP Disconnection Requests). Delivering the
+same report as a SET_REPORT on the control channel keeps them connected,
+which was verified by renaming the device so the quirk did not match.
+Keep the interrupt path for USB, where the quirk was introduced.
+
+--- a/drivers/hid/hid-sony.c
++++ b/drivers/hid/hid-sony.c
+@@ -1512,8 +1512,12 @@ static void sixaxis_send_output_report(struct sony_sc *sc)
+ 		}
+ 	}
+ 
+-	/* SHANWAN controllers require output reports via intr channel */
+-	if (sc->quirks & SHANWAN_GAMEPAD)
++	/*
++	 * SHANWAN controllers require output reports via intr channel on USB,
++	 * but over Bluetooth they disconnect on intr data; use SET_REPORT.
++	 */
++	if ((sc->quirks & SHANWAN_GAMEPAD) &&
++	    !(sc->quirks & SIXAXIS_CONTROLLER_BT))
+ 		hid_hw_output_report(sc->hdev, (u8 *)report,
+ 				sizeof(struct sixaxis_output_report));
+ 	else
