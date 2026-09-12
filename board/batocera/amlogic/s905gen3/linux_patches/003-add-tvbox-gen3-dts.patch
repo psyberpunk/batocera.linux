@@ -33,15 +33,18 @@ index 0000000..5327371
 +};
 diff --git a/arch/arm64/boot/dts/amlogic/meson-sm1-tvbox-gen3.dts b/arch/arm64/boot/dts/amlogic/meson-sm1-tvbox-gen3.dts
 new file mode 100644
-index 0000000..fe9c4b6
+index 0000000..83bc4ea
 --- /dev/null
 +++ b/arch/arm64/boot/dts/amlogic/meson-sm1-tvbox-gen3.dts
-@@ -0,0 +1,15 @@
+@@ -0,0 +1,33 @@
 +// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 +/*
 + * Generic S905X3 TV box (X96 Air class) with tuned VDDCPU regulator.
 + * Recovered from the original RGM tvbox-gen3 dtb: identical to
 + * meson-sm1-x96-air except for the vddcpu range and PWM period.
++ *
++ * meson-sm1-x96-air leaves uart_A (BCM4335 Bluetooth, AP6335 module)
++ * disabled, so the UART Bluetooth node is added here as on h96-max.
 + */
 +/dts-v1/;
 +
@@ -51,4 +54,19 @@ index 0000000..fe9c4b6
 +	regulator-min-microvolt = <721000>;
 +	regulator-max-microvolt = <1022000>;
 +	pwms = <&pwm_AO_cd 1 1250 0>;
++};
++
++&uart_A {
++	status = "okay";
++	pinctrl-0 = <&uart_a_pins>, <&uart_a_cts_rts_pins>;
++	pinctrl-names = "default";
++	uart-has-rtscts;
++
++	bluetooth {
++		compatible = "brcm,bcm43438-bt";
++		shutdown-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
++		max-speed = <2000000>;
++		clocks = <&wifi32k>;
++		clock-names = "lpo";
++	};
 +};
