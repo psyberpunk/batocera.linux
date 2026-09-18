@@ -166,7 +166,59 @@ compensar el kernel 6.6 de Batocera).
 
 ---
 
-## 7. Notas del ShanWan ZD-V+ (`2563:0575` / `045e:028e`)
+## 7. Mando multi-modo "Nintendo Co., Ltd." (USB `054C:0268`→`045E:028E`, BT `98:B6:8E:BE:B6:FE`)
+
+Diagnóstico 2026-09-18 por SSH en la X96 Max+ (`h96-max.dtb`, kernel 6.6.56).
+
+**Por USB** enumera como PS3 `054C:0268` durante 0.1 s y **él solo** salta a
+Xbox 360 `045E:028E` ("XBOX 360 For Windows", fabricante "Nintendo Co., Ltd.").
+El plugin `sixaxis` alcanza a ver el `054C:0268` pero al pedir la BD address el
+dispositivo ya no existe (`sixaxis_get_device_bdaddr: No such device`) → **nunca
+hace cable pairing**. Con cable malo además se re-enumera cada 1–5 s
+(`device descriptor read/64, error -71`). Por USB úsalo en modo Xbox 360 (`xpad`).
+
+**Por Bluetooth** tiene 2 modos:
+
+| Modo | ID | Driver | Estado |
+|------|----|--------|--------|
+| "Gamepad" (`HOME`+`□`) | `1949:0402` | hid-generic | ❌ descriptor HID roto (`unknown main item tag 0x0`): solo ejes/d-pad, botones muertos |
+| Xbox One S (`HOME`+`X`) | `045E:02E0` | `hid_xpadneo` | ✅ **usar este**. Nombre en ES: "Xbox Wireless Controller" |
+
+Problema del modo Xbox: xpadneo manda un *welcome rumble* al conectar
+(`ff_connect_notify=1`, motores débil/fuerte/gatillos con `sustain/release/loop`).
+El clon no entiende los parámetros de pulso y **vibra sin parar**, luego se cae
+(~30–90 s). Arreglo: apagar el rumble en el módulo.
+
+- En la imagen (rama `rgm`): `board/batocera/amlogic/s905gen3/fsoverlay/etc/modprobe.d/xpadneo-rgm.conf`
+  → `options hid_xpadneo ff_connect_notify=0 rumble_attenuation=100,100`.
+- En un box ya flasheado: crear ese archivo en `/etc/modprobe.d/` y
+  `batocera-save-overlay` (queda en `/boot/boot/overlay`).
+
+> ⚠️ **No escribir `/sys/module/hid_xpadneo/parameters/*` en caliente** con un
+> mando conectando: el write de `quirks` se quedó en estado `D`, arrastró a
+> `bluetoothd` y al subsistema HID (ni BT ni USB detectaban mandos) y hubo que
+> reiniciar con `sysrq b`. Por eso va en `modprobe.d`, no en `custom.sh`.
+> Sintaxis de `quirks`, por si hiciera falta: `MAC+3` (suma decimal), no `MAC:1+2`.
+
+**"Remove all" en ES → bluetoothd muerto.** Al borrar los dispositivos BT desde
+el menú, Batocera reinicia `bluetoothd`; el nuevo arrancó antes de que el viejo
+soltara D-Bus (`Unable to get on D-Bus`) y murió: `hci0 DOWN`, sin plugin
+`sixaxis`, cable pairing imposible, "no detecta ningún mando". Fix:
+`/etc/init.d/S32bluetooth restart` (o reiniciar el box). Comprobar con
+`ps | grep bluetoothd` y `hciconfig hci0` → `UP RUNNING`.
+
+**Icono en la lista BT de ES.** Lo decide la *Class of Device* que anuncia el
+mando: Xbox `0x0508` (minor gamepad) → `input-gaming` 🎮; clon GUO HUA
+`0x0540` (minor keyboard) → `input-keyboard` ⌨️. Cosmético; el kernel lo maneja
+igual con `hid-sony`.
+
+**Reinicios.** Antes de `reboot` por SSH: `sync` y esperar; un reinicio sucio
+perdió `custom.sh` y el emparejamiento recién hecho (`EXT4-fs: recovery
+complete`). Tras emparejar: `batocera-bluetooth save`.
+
+---
+
+## 8. Notas del ShanWan ZD-V+ (`2563:0575` / `045e:028e`)
 
 - Multi-modo por combinación de botones. Modos vistos: **Xbox 360** (`045e:028e`,
   driver xpad) y **DirectInput/Switch** (`2563:0575`, hid-generic). Por
