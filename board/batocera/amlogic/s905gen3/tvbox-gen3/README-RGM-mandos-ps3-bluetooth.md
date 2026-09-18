@@ -181,8 +181,12 @@ hace cable pairing**. Con cable malo además se re-enumera cada 1–5 s
 
 | Modo | ID | Driver | Estado |
 |------|----|--------|--------|
-| "Gamepad" (`HOME`+`□`) | `1949:0402` | hid-generic | ❌ descriptor HID roto (`unknown main item tag 0x0`): solo ejes/d-pad, botones muertos |
-| Xbox One S (`HOME`+`X`) | `045E:02E0` | `hid_xpadneo` | ✅ **usar este**. Nombre en ES: "Xbox Wireless Controller" |
+| "Gamepad" (`HOME`+`□`, `HOME`+`X`, `HOME`+`○`) | `1949:0402` | hid-generic | ❌ descriptor HID roto (`unknown main item tag 0x0`): solo ejes/d-pad, botones sin mapear |
+| Xbox One S (**`HOME`+`△`**) | `045E:02E0` | `hid_xpadneo` | ✅ **usar este**. Nombre en ES: "Xbox Wireless Controller" |
+
+Procedimiento: mando apagado → mantener **`HOME` + `△`** hasta que parpadee →
+emparejar desde ES (Controles → Bluetooth). Las otras combinaciones lo dejan en
+modo "Gamepad" y aparece sin botones.
 
 Problema del modo Xbox: xpadneo manda un *welcome rumble* al conectar
 (`ff_connect_notify=1`, motores débil/fuerte/gatillos con `sustain/release/loop`).
