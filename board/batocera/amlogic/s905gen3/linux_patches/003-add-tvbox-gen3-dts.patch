@@ -13,7 +13,7 @@ new file mode 100644
 index 0000000..5327371
 --- /dev/null
 +++ b/arch/arm64/boot/dts/amlogic/meson-sm1-tvbox-gen3-intphy.dts
-@@ -0,0 +1,17 @@
+@@ -0,0 +1,32 @@
 +// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 +/*
 + * Generic S905X3 TV box (X96 Max+ class) using the SoC internal
@@ -30,6 +30,21 @@ index 0000000..5327371
 +	/delete-property/ amlogic,tx-delay-ns;
 +	phy-handle = <&internal_ephy>;
 +	phy-mode = "rmii";
++};
++
++/*
++ * This box carries an AP6335 (BCM4335) module, not the RTL8822CS that
++ * meson-sm1-x96-max-plus describes: WiFi probes fine on SDIO (brcmfmac),
++ * but the UART Bluetooth node must be retargeted to the Broadcom driver.
++ */
++&bluetooth {
++	compatible = "brcm,bcm43438-bt";
++	/delete-property/ interrupt-parent;
++	/delete-property/ interrupts;
++	/delete-property/ interrupt-names;
++	/delete-property/ vbat-supply;
++	/delete-property/ vddio-supply;
++	status = "okay";
 +};
 diff --git a/arch/arm64/boot/dts/amlogic/meson-sm1-tvbox-gen3.dts b/arch/arm64/boot/dts/amlogic/meson-sm1-tvbox-gen3.dts
 new file mode 100644

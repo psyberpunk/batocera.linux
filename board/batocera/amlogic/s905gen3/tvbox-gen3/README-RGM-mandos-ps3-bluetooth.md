@@ -113,6 +113,14 @@ nombre.
 
 ## 5. Emparejar (primera vez) y reconectar
 
+> Prerrequisito: el dtb debe levantar el BT por UART (`hciconfig` muestra un
+> `hci` con `Bus: UART`, no solo el `SDIO` con BD Address `00:00:...`). En la
+> X96 Max+ (AP6335) el dtb que funciona es **`meson-sm1-h96-max.dtb`** — ver
+> sección 0 de `README-RGM-tvbox-gen3.md`.
+>
+> Mandos multi-modo (ZD-V+): si por USB aparecen como `Microsoft X-Box 360 pad`
+> están en modo Xbox y **no** hacen cable pairing. Cambiar a modo PS3 primero.
+
 1. **Primera vez, por cable USB**: conecta el mando al box con cable. El plugin
    `sixaxis` de bluez hace *cable pairing* (graba la MAC del adaptador en el
    mando y crea el emparejamiento). En rgm el fallback para nombres desconocidos
