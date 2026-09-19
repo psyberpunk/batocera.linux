@@ -234,7 +234,7 @@ complete`). Tras emparejar: `batocera-bluetooth save`.
 
 ---
 
-## 8. Sesión 2026-09-19 — hallazgos verificados en hardware
+## 9. Sesión 2026-09-19 — hallazgos verificados en hardware
 
 ### 8.1 Trampa de orden de compilación
 
