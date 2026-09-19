@@ -167,3 +167,96 @@ compensar el kernel 6.6 de Batocera).
   failed -19`, disconnects seguidos): es **cable/puerto** malo, no software.
   Cambiar cable de datos / puerto.
 - Recomendado: por cable en **Xbox 360**; inalámbrico en **PS3/BT**.
+
+---
+
+## 8. Sesión 2026-09-19 — hallazgos verificados en hardware
+
+### 8.1 Trampa de orden de compilación
+
+La imagen `batocera-s905gen3-tvbox-gen3-1.0-20260919.img` **no lleva** los
+parches de `hid-sony`: su kernel se compiló antes que los commits.
+
+| | UTC |
+|---|---|
+| kernel de la imagen (`Sat Sep 12 01:12:13 CEST 2026`) | 2026-09-11 23:12 |
+| `1eaf3d7` *SET_REPORT over BT* | 2026-09-12 06:51 |
+| `0d676b3` *skip SHANWAN quirk over BT* | 2026-09-12 12:44 |
+
+Con el quirk aún activo los SHANWAN parpadeaban los 4 LEDs. Comprobar antes de
+dar por bueno un arreglo:
+
+```sh
+uname -v        # fecha de compilación del kernel en la caja
+git log -1 --format=%cd --date=iso <commit-del-parche>
+```
+
+Como el parche vive en `linux_patches/`, el rebuild tiene que **rehacer el
+kernel**, no reusar el de `output/build/linux-*`.
+
+### 8.2 El cable *sí* empareja aunque no lo parezca
+
+Los mandos con descriptor USB `Nintendo Co., Ltd.` / `USB Gamepad` (vistos:
+`98:B6:8E:BE:B6:FE` y `98:B6:66:7A:97:C5`) hacen esto en **cada** conexión:
+
+```
+054c:0268  modo PS3        <- aquí bluez completa el cable pairing
+   ~120 ms
+045e:028e  XBOX 360 For Windows   <- el mando se pasa solo a X-input
+```
+
+El salto lo hace el **firmware del mando**. Descartado que lo dispare el host:
+pasa igual con `hid-sony`, con `hid-generic`
+(`echo 1 > /sys/module/hid/parameters/ignore_special_drivers`) y manteniendo el
+`hidraw` abierto (equivalente al `tail -f` de `sixaxis-helper.sh` de EmuELEC).
+
+Consecuencia: al desconectar el cable el mando ya está en modo X-input, no
+auto-reconecta como PS3 y parece que el emparejado falló. **No falló** — se
+verifica leyendo del propio mando:
+
+```sh
+# feature 0xF2 -> MAC del mando (bytes 4..9); 0xF5 -> MAC del host (bytes 2..7)
+python3 - <<'PY'
+import fcntl, os
+def IOC(d,t,nr,sz): return (d<<30)|(sz<<16)|(ord(t)<<8)|nr
+def getf(p, rep, sz):
+    fd = os.open(p, os.O_RDWR); b = bytearray(sz); b[0] = rep
+    try: fcntl.ioctl(fd, IOC(3,'H',0x07,sz), b, True); return bytes(b)
+    finally: os.close(fd)
+m = lambda b: ":".join("%02X" % x for x in b)
+print("mando:", m(getf("/dev/hidraw0",0xF2,17)[4:10]),
+      "host:",  m(getf("/dev/hidraw0",0xF5,8)[2:8]))
+PY
+```
+
+La ventana son ~120 ms, así que hay que sondear `/sys/class/hidraw` cada 5 ms
+(el `HID_ID` del uevent viene como `0003:0000054C:00000268`, con ceros).
+
+**Rutina para estos mandos: cable → desconectar → pulsar PS una vez.** Después
+reconectan solos. Verificado: L2CAP psm 17 + 19 OK, `js0`, LED de jugador fijo.
+
+### 8.3 Correcciones a secciones anteriores
+
+- **`btmon` no viene en la imagen.** Sí está `/usr/bin/hcidump`:
+  `hcidump -i hci1 -t -X` (ojo: no acepta `-V`).
+- El quirk `SHANWAN_GAMEPAD` compara con `strcmp` **exacto**, así que **no**
+  aplica a los mandos que se anuncian como `PLAYSTATION(R)3Controller-ghic`.
+  El parche del punto 3 solo arregla a los SHANWAN.
+- `batocera-bluetooth save` deja los nombres renombrados en
+  `/userdata/system/bluetooth/bluetooth.tar`, y `restore` (desde `S32bluetooth`)
+  los repone en cada arranque. Hay que repetir el renombrado si se re-empareja
+  un SHANWAN.
+
+### 8.4 Descartado (no repetir)
+
+- **xpadneo**: EmuELEC *también* lo lleva, con el mismo alias `045E:02E0`.
+- **`ClassicBondedOnly`**: `S32bluetooth` ya lo pone en `false` cuando
+  `controllers.ps3.enabled=1` (valor por defecto).
+- **Tabla `sixaxis` de bluez**: la de Batocera es más completa que la de EmuELEC
+  (incluye `GUO HUA PS3 GamePad` más el fallback del parche 003).
+- **`tail -f` sobre el evdev** de `sixaxis-helper.sh`: no evita el cambio de modo.
+
+### 8.5 Gotcha de diagnóstico por SSH
+
+`pkill -f <patrón>` mata el propio shell remoto, porque su línea de comando
+contiene el patrón. Usar `pkill -f "[p]atrón"`.
