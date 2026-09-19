@@ -236,29 +236,42 @@ complete`). Tras emparejar: `batocera-bluetooth save`.
 
 ## 9. Sesión 2026-09-19 — hallazgos verificados en hardware
 
-### 8.1 Trampa de orden de compilación
+### 9.1 Verifica QUÉ imagen corre la caja, no cuál es la más nueva
 
-La imagen `batocera-s905gen3-tvbox-gen3-1.0-20260919.img` **no lleva** los
-parches de `hid-sony`: su kernel se compiló antes que los commits.
+Los SHANWAN parpadeaban los 4 LEDs porque la caja estaba arrancada con la
+imagen **20260912**, no con la 20260919. Comparación de banners:
 
-| | UTC |
+| | banner del kernel |
 |---|---|
-| kernel de la imagen (`Sat Sep 12 01:12:13 CEST 2026`) | 2026-09-11 23:12 |
-| `1eaf3d7` *SET_REPORT over BT* | 2026-09-12 06:51 |
-| `0d676b3` *skip SHANWAN quirk over BT* | 2026-09-12 12:44 |
+| imagen `...-1.0-20260912.img` (la que estaba flasheada) | `#1 SMP PREEMPT Sat Sep 12 01:12:13 CEST 2026` |
+| imagen `...-1.0-20260919.img` | `#2 SMP PREEMPT Fri Sep 18 22:54:38 CEST 2026` |
 
-Con el quirk aún activo los SHANWAN parpadeaban los 4 LEDs. Comprobar antes de
-dar por bueno un arreglo:
+La 20260919 **sí lleva** el parche 004 (`.stamp_patched` del kernel es del
+17-sep, posterior a `0d676b3`). La 20260912 es anterior a los commits
+`1eaf3d7` (2026-09-12 06:51 UTC) y `0d676b3` (12:44 UTC), así que su kernel
+todavía aplica el quirk `SHANWAN_GAMEPAD` sobre Bluetooth.
+
+**Comprueba siempre los dos lados antes de culpar al código:**
 
 ```sh
-uname -v        # fecha de compilación del kernel en la caja
-git log -1 --format=%cd --date=iso <commit-del-parche>
+# en la caja
+uname -v
+# en el .img (partición de boot montada)
+strings /mnt/<boot>/boot/linux | grep -m1 'SMP PREEMPT'
+# fecha del commit del parche
+git log -1 --format=%cd --date=iso <commit>
 ```
 
-Como el parche vive en `linux_patches/`, el rebuild tiene que **rehacer el
-kernel**, no reusar el de `output/build/linux-*`.
+Prueba independiente de si el quirk está activo, sin mirar fechas: renombra el
+mando a algo que no sea exactamente `SHANWAN PS3 GamePad` (ver punto 4). Si los
+LEDs se arreglan, el kernel **no** lleva el parche — con el parche el quirk ya
+no se aplica sobre BT y el renombrado no cambiaría nada.
 
-### 8.2 El cable *sí* empareja aunque no lo parezca
+Nota de build: como el parche vive en `linux_patches/`, un rebuild solo lo
+recoge si buildroot rehace el kernel. Si `.stamp_patched` ya es posterior al
+commit, no hace falta `linux-dirclean`.
+
+### 9.2 El cable *sí* empareja aunque no lo parezca
 
 Los mandos con descriptor USB `Nintendo Co., Ltd.` / `USB Gamepad` (vistos:
 `98:B6:8E:BE:B6:FE` y `98:B6:66:7A:97:C5`) hacen esto en **cada** conexión:
@@ -299,7 +312,7 @@ La ventana son ~120 ms, así que hay que sondear `/sys/class/hidraw` cada 5 ms
 **Rutina para estos mandos: cable → desconectar → pulsar PS una vez.** Después
 reconectan solos. Verificado: L2CAP psm 17 + 19 OK, `js0`, LED de jugador fijo.
 
-### 8.3 Correcciones a secciones anteriores
+### 9.3 Correcciones a secciones anteriores
 
 - **`btmon` no viene en la imagen.** Sí está `/usr/bin/hcidump`:
   `hcidump -i hci1 -t -X` (ojo: no acepta `-V`).
@@ -311,7 +324,7 @@ reconectan solos. Verificado: L2CAP psm 17 + 19 OK, `js0`, LED de jugador fijo.
   los repone en cada arranque. Hay que repetir el renombrado si se re-empareja
   un SHANWAN.
 
-### 8.4 Descartado (no repetir)
+### 9.4 Descartado (no repetir)
 
 - **xpadneo**: EmuELEC *también* lo lleva, con el mismo alias `045E:02E0`.
 - **`ClassicBondedOnly`**: `S32bluetooth` ya lo pone en `false` cuando
@@ -320,7 +333,7 @@ reconectan solos. Verificado: L2CAP psm 17 + 19 OK, `js0`, LED de jugador fijo.
   (incluye `GUO HUA PS3 GamePad` más el fallback del parche 003).
 - **`tail -f` sobre el evdev** de `sixaxis-helper.sh`: no evita el cambio de modo.
 
-### 8.5 Gotcha de diagnóstico por SSH
+### 9.5 Gotcha de diagnóstico por SSH
 
 `pkill -f <patrón>` mata el propio shell remoto, porque su línea de comando
 contiene el patrón. Usar `pkill -f "[p]atrón"`.
