@@ -47,10 +47,10 @@ mask in a fixed order, so its text is unchanged.
 diff --git a/drivers/hid/hid-core.c b/drivers/hid/hid-core.c
 --- a/drivers/hid/hid-core.c
 +++ b/drivers/hid/hid-core.c
-@@ -2188,6 +2188,14 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
+@@ -2190,6 +2190,14 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
  	if (hid_hiddev(hdev))
  		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
-  
+ 
 +	/*
 +	 * Register hidraw first: it is cheap, and a driver's ->input_configured
 +	 * can be slow enough (hid-sony on a USB Sixaxis) that userspace misses a
@@ -62,12 +62,12 @@ diff --git a/drivers/hid/hid-core.c b/drivers/hid/hid-core.c
  	if ((connect_mask & HID_CONNECT_HIDINPUT) && !hidinput_connect(hdev,
  				connect_mask & HID_CONNECT_HIDINPUT_FORCE))
  		hdev->claimed |= HID_CLAIMED_INPUT;
-@@ -2196,8 +2204,6 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
+@@ -2198,8 +2206,6 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
  			!hdev->hiddev_connect(hdev,
  				connect_mask & HID_CONNECT_HIDDEV_FORCE))
  		hdev->claimed |= HID_CLAIMED_HIDDEV;
 -	if ((connect_mask & HID_CONNECT_HIDRAW) && !hidraw_connect(hdev))
 -		hdev->claimed |= HID_CLAIMED_HIDRAW;
-  
+ 
  	if (connect_mask & HID_CONNECT_DRIVER)
  		hdev->claimed |= HID_CLAIMED_DRIVER;
