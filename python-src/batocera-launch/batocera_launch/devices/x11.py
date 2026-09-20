@@ -4,7 +4,7 @@ import ctypes.util
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import IntFlag
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from batocera_common.dataclasses import cached_dataclass, cached_property
 
@@ -32,8 +32,38 @@ class XSetWindowAttributes(ctypes.Structure):
     ]
 
 
-_libX11 = ctypes.cdll.LoadLibrary(cast('str', ctypes.util.find_library('X11')))
-_libXfixes = ctypes.cdll.LoadLibrary(cast('str', ctypes.util.find_library('Xfixes')))
+class _MissingFunction:
+    """Placeholder for a function of a library that is not installed (e.g. Wayland-only builds without libX11)."""
+
+    def __init__(self, library: str, name: str, /) -> None:
+        self._library = library
+        self._name = name
+        self.restype: Any = None
+        self.argtypes: Any = None
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        raise OSError(f'{self._library} is not available on this system, cannot call {self._name}')
+
+
+class _MissingLibrary:
+    """Stand-in for a shared library that could not be found; fails at call time instead of import time."""
+
+    def __init__(self, name: str, /) -> None:
+        self._name = name
+        self._functions: dict[str, _MissingFunction] = {}
+
+    def __getattr__(self, name: str) -> _MissingFunction:
+        return self._functions.setdefault(name, _MissingFunction(self._name, name))
+
+
+def _load_library(name: str, /) -> Any:
+    if (path := ctypes.util.find_library(name)) is not None:
+        return ctypes.cdll.LoadLibrary(path)
+    return _MissingLibrary(f'lib{name}')
+
+
+_libX11 = _load_library('X11')
+_libXfixes = _load_library('Xfixes')
 
 # X11 function signatures
 _void_p = ctypes.c_void_p
