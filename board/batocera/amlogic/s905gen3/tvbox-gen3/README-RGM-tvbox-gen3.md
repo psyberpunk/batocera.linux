@@ -213,6 +213,7 @@ Historial de imágenes 2026-09:
 | `20260919` 13:46 | + bluetooth `main.conf` (6e41b04), kernel con parche 005 hidraw | `975d8401…` |
 | `20260920` 04:30 | + bluez parche 004 (record HID antes del agente) — **cable pairing en una pasada** | `9b58344a…` |
 | `20260920-243e136c` 06:40 | + batocera-launch importa sin libX11 (los juegos arrancan) + tope 1080p (`sysconfigs/s905gen3`) | `243e136c…` |
+| `20260920-7514b75e` 07:30 | + es_settings.py: fallback sin `es_settings.cfg` (imagen limpia arrancaba sin juegos) | `7514b75e…` |
 
 Convención desde 2026-09-20: en el respaldo y en Drive cada build se guarda
 como `batocera-s905gen3-tvbox-gen3-1.0-<fecha>-<sha256 corto>.img.gz` (y
