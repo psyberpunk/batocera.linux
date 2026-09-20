@@ -214,6 +214,7 @@ Historial de imágenes 2026-09:
 | `20260920` 04:30 | + bluez parche 004 (record HID antes del agente) — **cable pairing en una pasada** | `9b58344a…` |
 | `20260920-243e136c` 06:40 | + batocera-launch importa sin libX11 (los juegos arrancan) + tope 1080p (`sysconfigs/s905gen3`) | `243e136c…` |
 | `20260920-7514b75e` 07:30 | + es_settings.py: fallback sin `es_settings.cfg` (imagen limpia arrancaba sin juegos) | `7514b75e…` |
+| `20260920-a3910295` 08:07 | + `batocera-resolution` labwc: `setMode` verificado con reintento — **ES arranca en 1080p de verdad** (antes el reconfigure de labwc lo devolvía a 4K) | `a3910295…` |
 
 Convención desde 2026-09-20: en el respaldo y en Drive cada build se guarda
 como `batocera-s905gen3-tvbox-gen3-1.0-<fecha>-<sha256 corto>.img.gz` (y
@@ -221,3 +222,35 @@ como `batocera-s905gen3-tvbox-gen3-1.0-<fecha>-<sha256 corto>.img.gz` (y
 fecha y dos builds el mismo día se pisan. Los `.md5`/`.sha256` llevan el
 nombre renombrado. Actualizar sin perder `/userdata`: copiar el
 `boot-…tar.xz` a `/userdata/system/upgrade/` y actualizar desde el menú.
+
+---
+
+## 7. Tope 1080p (Mali-G31 MC1) — estado 2026-09-20
+
+La GPU no mueve 4K: en tele 2160p ES se queda al ~120 % de CPU en reposo y
+hasta SNES en RetroArch va a tirones. Tres piezas, todas en `rgm`:
+
+| Pieza | Commit | Efecto |
+|-------|--------|--------|
+| `sysconfigs/s905gen3/batocera.conf` con `es.resolution=max-1920x1080` y `global.videomode=max-1920x1080`; `batocera-system.mk` añade esas claves al `batocera.conf` que siembra `/userdata` | `c34ef2c` | juegos a 1080p (verificado en caja) |
+| `python-src/batocera-launch/.../devices/x11.py`: importa sin libX11 | `8305feb` | los juegos arrancan desde ES en Wayland |
+| `batocera-resolution.wayland-labwc`: `_set_mode_verified()` (aplica, espera, re-comprueba tras 0.3 s, reintenta ×3) en ambos caminos de `setMode` | `6ef44c5` | **ES arranca en 1080p** (pendiente de verificar en caja) |
+
+Síntoma del tercero (`/userdata/system/logs/display.log`): `setOutput` lanza
+`labwc --reconfigure` (asíncrono) + `wlr-randr --on --preferred` (4K) y acto
+seguido `setMode` → `Best mode found: 1920x1080@60 ... Setting it.` sin error,
+pero al arrancar ES `currentMode: '3840x2160@60'`: el reconfigure aterrizaba
+después y devolvía el modo preferido. Encima `batocera-launch` restaura al
+salir del juego el modo que había (4K). Con el fix debe verse en `display.log`
+`_set_mode_verified: HDMI-A-1 is now 1920x1080@60.000000Hz (attempt N)` y
+`currentMode: '1920x1080@60.000000Hz'` antes de `--- Launching EmulationStation ---`.
+
+Si en alguna caja el modo sigue sin quedarse tras 3 intentos, el log dirá
+`did not stick ... attempt 3/3`; siguiente paso sería aplicar el modo también
+tras el arranque de ES o fijar `es.resolution=1920x1080` en
+`/boot/batocera-boot.conf` (eso sí funcionó como workaround).
+
+Nota: `global.videomode` solo se siembra en el **primer arranque** de
+`/userdata`; en una caja con userdata previo hay que ponerlo a mano en
+`batocera.conf`. `es.resolution` sí aplica siempre desde el sysconfig.
+
