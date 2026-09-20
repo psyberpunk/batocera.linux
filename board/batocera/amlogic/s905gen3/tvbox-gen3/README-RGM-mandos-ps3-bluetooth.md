@@ -337,3 +337,125 @@ reconectan solos. Verificado: L2CAP psm 17 + 19 OK, `js0`, LED de jugador fijo.
 
 `pkill -f <patrón>` mata el propio shell remoto, porque su línea de comando
 contiene el patrón. Usar `pkill -f "[p]atrón"`.
+
+---
+
+## 10. El mando que se leía como Xbox 360 — caso cerrado (2026-09-20)
+
+Síntoma: un clon de PS3 que al conectarlo por cable aparecía como **`Microsoft X-Box 360
+pad`** y no se emparejaba, mientras los otros clones sí. En EmuELEC ese mismo mando entraba
+sin problema. Hicieron falta dos parches, uno al kernel y otro a bluez, porque eran **dos
+fallos distintos superpuestos**.
+
+### Lo que hace el mando (no es un bug, es su firmware)
+
+Se anuncia por USB como `Nintendo Co., Ltd.` / `USB Gamepad`, y en cada conexión del cable:
+
+```
+054C:0268  modo PS3                  <- aquí bluez tiene que emparejarlo
+   ~120 ms
+045E:028E  "XBOX 360 For Windows"    <- se reenumera solo a X-input
+```
+
+Ese salto es autónomo. Comprobado con `hid-sony`, con `hid-generic`
+(`hid.ignore_special_drivers=1`), manteniendo el `hidraw` abierto, y con
+`usbhid.quirks=0x054c:0x0268:0x20000000` (`HID_QUIRK_NO_INIT_REPORTS`) en el cmdline: cae a
+los 119-124 ms en todos los casos. **No se puede evitar**; solo se puede llegar antes.
+
+Cuando el salto ocurre sin que el emparejado se haya completado, lo que queda enchufado es un
+mando X-input, que es lo que se veía en pantalla. El nombre "Xbox 360" era el síntoma, no la
+causa.
+
+### Fallo 1 — el `hidraw` nacía demasiado tarde
+
+El plugin `sixaxis` de bluez lee la dirección Bluetooth del mando por `ioctl` sobre `hidraw`.
+Ese nodo no existía hasta 91 ms después de la enumeración, dejando ~25 ms de los 120.
+
+La causa está en `hid_connect()` (`drivers/hid/hid-core.c`): llamaba a `hidinput_connect()`
+**antes** que a `hidraw_connect()`, y para estos mandos `hidinput_connect()` ejecuta
+`sony_input_configured()`, que hace en serie dos `GET_REPORT` de feature, el input device de
+sensores, cuatro LEDs, el probe de batería con `hid_hw_open()` y el force feedback.
+
+Medido con `udevadm monitor --kernel` (el `hid_info` de `dmesg` **no sirve**: lo imprime
+`hid_connect()` al final, después de todo ese trabajo, así que no refleja cuándo nace el
+`hidraw`):
+
+| driver | enum → hidraw | ventana para bluez | cable pairing |
+|---|---|---|---|
+| `hid-sony` (antes) | 91.3 ms (media de 8) | 25 ms | **2 de 8** |
+| `hid-generic` | 27.0 ms (media de 5) | 94 ms | **5 de 5** |
+| `hid-sony` + parche 005 | **24.8 ms** | ~95 ms | 2 de 3 |
+
+Arreglo: **`linux_patches/005-hid-core-hidraw-before-hidinput.patch`**. Registra `hidraw`
+antes que `hidinput`. `hidraw_connect()` solo reserva un minor y crea el char device: no toca
+`hdev->claimed` de input, ni `hidinput`, ni `hid_hw_*`. `hid-sony` sigue enganchado con sus
+LEDs, rumble y sensores intactos.
+
+### Fallo 2 — mando confiable, pero sin perfil HID
+
+Con el fallo 1 resuelto el mando se emparejaba, pero al pulsar PS bluez lo rechazaba:
+
+```
+input_device_set_channel() idev (nil) psm 17
+Refusing input device connect: No such file or directory (2)
+confirm_event_cb() Refusing connection: unknown device
+dev_disconnected reason 3
+```
+
+En un arranque se vieron **seis rechazos seguidos** tras el primer emparejado exitoso, y solo
+tras una **segunda** pasada de cable quedaba registrado el perfil HID.
+
+Causa: `plugins/sixaxis.c` instala el registro SDP del Sixaxis con
+`btd_device_set_record()` únicamente dentro de `agent_auth_cb()`, que corre cuando responde
+el agente D-Bus. Ese ida y vuelta no cabe en 120 ms. Cuando no llega a tiempo, el dispositivo
+queda `Trusted` pero **sin el UUID `00001124`**, `input_device_register()` nunca corre, y
+toda conexión entrante se rechaza. Confirmado en log: `setting up new device` ×2 y
+`agent_auth_cb` ×1, sin "Agent replied negatively" y sin que el device se borre.
+
+Arreglo: **`patches/bluez5_utils/004-sixaxis-record-before-auth.patch`**, dos cambios en
+`setup_device()`:
+
+1. Instalar el record **antes** de pedir la autorización. Es el registro canónico del
+   Sixaxis, ya definido en el propio `sixaxis.c`, así que no cuesta ninguna consulta SDP por
+   aire. El perfil existe desde el primer milisegundo, pase lo que pase con el agente.
+2. Estrechar el guard `already known, skipping` a `btd_device_is_connected()`. Como
+   `001-trust-sixaxis.patch` marca *trusted* a todo mando nada más verlo, dejar
+   `is_trusted()` haría que la segunda pasada se saltara la autorización y **nunca escribiera
+   la MAC del host** en un mando que viniera de otra consola. La intención upstream de ese
+   check es "lo enchufaron a cargar mientras ya estaba en uso", y eso lo cubre
+   `is_connected()`.
+
+Efecto secundario aceptado: enchufar a cargar un mando emparejado pero desconectado vuelve a
+pedir autorización y reescribe la misma MAC. Inofensivo.
+
+### Resultado
+
+Imagen `20260920` (kernel `#1 SMP PREEMPT Sat Sep 19 21:37:41 CEST 2026` + bluez
+recompilado). El mando se empareja por cable y conecta con PS, y el registro queda completo
+(`CablePairing=true`, `Services=00001124…`, `cache/<mac>` con `ServiceRecords`).
+
+No siempre entra al primer enchufe: el mando alterna PS3↔Xbox varias veces por conexión y
+bluez puede perder alguna. Con dos pasadas funciona de forma consistente, frente al
+comportamiento anterior en que podía no entrar nunca.
+
+### Lo que NO era, comprobado
+
+- **No es un límite de mandos.** BR/EDR admite 7 conexiones activas; verificado con 4 clones
+  PS3 + DualSense.
+- **No es `ClassicBondedOnly`.** `S32bluetooth` ya lo pone en `false` cuando
+  `controllers.ps3.enabled=1`.
+- **No es xpadneo.** EmuELEC también lo lleva, con el mismo alias `045E:02E0`.
+- **No es la tabla `sixaxis` de bluez.** La de batocera es más completa que la de EmuELEC
+  (incluye `GUO HUA PS3 GamePad` más el fallback del parche 003).
+- **No es `usbhid_init_reports()`.** El quirk `NO_INIT_REPORTS` no cambia nada en este mando.
+- **La imagen no trae emparejamientos de fábrica.** `datainit/system/bluetooth/` solo tiene
+  `.keep` y la partición de datos de la `.img` solo tiene `lost+found`.
+
+### Un registro escrito a mano no sirve
+
+Por si alguien lo intenta: bluez trata como temporales a estos clones (nunca hacen bonding) y
+**borra el almacenamiento al primer intento fallido**. Además un registro a medias no basta:
+sin `Services=` no hay perfil HID (`idev nil`), y con `Services=` pero sin caché SDP bluez
+levanta los dos canales L2CAP y los tira a los 0.5 ms. Solo sirve el registro que arma bluez
+con su propio cable pairing. `bluetoothctl connect <mac>` saliente sí lo completa, porque
+bluez únicamente hace el browse SDP cuando la conexión la inicia él.
