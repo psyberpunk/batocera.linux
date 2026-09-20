@@ -1,0 +1,80 @@
+bluez: install the Sixaxis HID record before asking the agent
+
+A PS3 clone here re-enumerates as an X-input pad (045E:028E) about 120 ms
+after it appears on USB. The sixaxis plugin only installs the HID record from
+agent_auth_cb(), which runs when the D-Bus authorization agent replies, and
+that round trip does not fit in the window.
+
+Observed on hardware, with the kernel-side race already fixed by
+005-hid-core-hidraw-before-hidinput.patch:
+
+  497  sixaxis: setting up new device      <- first cable pass, plugin won
+       ... six incoming connections, every one refused:
+       input_device_set_channel() idev (nil) psm 17
+       Refusing input device connect: No such file or directory (2)
+       confirm_event_cb() Refusing connection: unknown device
+  688  sixaxis: setting up new device      <- second cable pass
+  700  agent_auth_cb() remote ... old_central == new_central
+
+agent_auth_cb() appears once, after the second pass. There is no "Agent
+replied negatively" and the device is never removed: the pad simply goes away
+before the agent answers, so btd_device_set_record() is never reached. The
+device stays trusted but without UUID 00001124, input_device_register() never
+runs, and the pad cannot connect until a second cable pairing completes.
+
+Install the record in setup_device() instead. It is the canonical Sixaxis
+record already defined in this file, so nothing is queried over the air, and
+the HID profile exists from the first millisecond regardless of the agent.
+The central address is still written from agent_auth_cb(), which now wins its
+race thanks to the kernel patch.
+
+Also narrow the "already known, skipping" guard to connected devices. With
+001-trust-sixaxis.patch every pad is marked trusted as soon as it is seen, so
+once the record is installed early that guard would fire on the second cable
+pass and skip a pad whose central address had never been written - exactly the
+pad coming from another console. Upstream's intent for that check is a pad
+plugged in to charge while already in use, which is_connected() covers.
+
+diff --git a/plugins/sixaxis.c b/plugins/sixaxis.c
+--- a/plugins/sixaxis.c
++++ b/plugins/sixaxis.c
+@@ -342,8 +342,13 @@ static bool setup_device(int fd, const char *sysfs_path,
+ 	device = btd_adapter_find_device(adapter, &device_bdaddr,
+ 							BDADDR_BREDR);
+-	if (device && btd_device_has_uuid(device, HID_UUID) &&
+-			(btd_device_is_connected(device) ||
+-			 btd_device_is_trusted(device))) {
++	/*
++	 * Only skip a pad that is really in use. The batocera patch marks
++	 * every pad trusted the moment it is seen, so keeping is_trusted()
++	 * here would also skip a pad whose cable pairing never finished,
++	 * and its central address would never be written.
++	 */
++	if (device && btd_device_has_uuid(device, HID_UUID) &&
++			btd_device_is_connected(device)) {
+ 		char device_addr[18];
+ 		ba2str(&device_bdaddr, device_addr);
+ 		DBG("device %s already known, skipping", device_addr);
+@@ -364,6 +369,22 @@ static bool setup_device(int fd, const char *sysfs_path,
+ 	btd_device_set_temporary(device, false);
+ 	btd_device_set_trusted(device, true);
+ 
++	/*
++	 * Install the Sixaxis HID record here, not only in agent_auth_cb():
++	 * some clones re-enumerate as an X-input pad about 120 ms after they
++	 * appear, and the D-Bus round trip to the authorization agent does
++	 * not always fit in that window. When it does not, the device is left
++	 * trusted but without the HID UUID, input_device_register() never
++	 * runs, and every incoming connection from the pad is refused with
++	 * "unknown device" until a second cable pairing happens.
++	 *
++	 * The record is the canonical Sixaxis one defined in this file, so
++	 * this costs no SDP query over the air.
++	 */
++	if (cp->type == CABLE_PAIRING_SIXAXIS)
++		btd_device_set_record(device, HID_UUID,
++					SIXAXIS_HID_SDP_RECORD);
++
+ 	closure = g_new0(struct authentication_closure, 1);
+ 	if (!closure) {
+ 		btd_adapter_remove_device(adapter, device);
