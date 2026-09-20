@@ -151,10 +151,64 @@ Pistas en el log:
 
 ## 6. Recompilar
 
+Build en docker (`batoceralinux/batocera.linux-build`). Desde un script o una
+terminal sin TTY hay que exportar `BATCH_MODE=1`, si no docker falla con
+`cannot attach stdin to a TTY-enabled container`.
+
+Qué hay que rehacer según lo que cambió (tiempos medidos en la PC de oficina):
+
+| Cambio | Comando previo a `make s905gen3-build` | Tiempo total |
+|--------|----------------------------------------|--------------|
+| Solo `fsoverlay/`, `uEnv.txt`, `batocera-boot.conf`, docs | nada | ~10 min (target-finalize + squashfs + `.img.gz`) |
+| Videos/imágenes de splash | `make s905gen3-pkg PKG=batocera-splash-reinstall` | ~10 min |
+| Solo un dts (`003-*.patch` ya aplicado, editas el dts del árbol) | `make s905gen3-pkg PKG=linux-rebuild` (solo regenera dtbs) | ~15 min |
+| Cualquier `linux_patches/*.patch` nuevo o cambiado | `make s905gen3-shell CMD='make linux-dirclean'` | **~1 h** (kernel completo) |
+| Cualquier `board/batocera/patches/bluez5_utils/*.patch` | `make s905gen3-shell CMD='make bluez5_utils-dirclean'` | ~15 min |
+
+Buildroot **no** vuelve a aplicar parches sobre un árbol ya extraído: si cambias
+un `.patch` y no haces el `-dirclean` del paquete, el build sale "bien" con el
+parche viejo. Antes de compilar, dry-run del parche contra el árbol ya parcheado
+(buildroot aplica con `patch -g0 -p1 -E`, **sin** `--ignore-whitespace`; una
+línea de contexto en blanco debe ser exactamente un espacio):
+
 ```sh
-make s905gen3-build
+cd output/s905gen3/build/linux-6.6.56        # o bluez5_utils-5.84
+patch -p1 --dry-run < ../../../../board/batocera/amlogic/s905gen3/linux_patches/00N-*.patch
 ```
 
-Luego flashear la imagen resultante a la microSD (ver el `LEEME` de la carpeta
-de respaldo para el `dd`). El número de jugador lo asigna Batocera por orden de
-conexión, no por el nombre Bluetooth del mando.
+Verificación tras el build (todo desde la raíz del repo):
+
+```sh
+D=output/s905gen3/images/batocera
+grep -n "Applying 00[0-9]-\|FAILED\|Hunk" build-s905gen3.log      # parches aplicados, sin FAILED
+strings $D/boot_tvbox-gen3/boot/linux | grep -m1 "SMP PREEMPT [A-Z]"   # fecha del kernel
+grep -c 'SIXAXIS_CONTROLLER_BT))' output/s905gen3/build/linux-6.6.56/drivers/hid/hid-sony.c   # 2 = parche 004
+sed -n 2190,2202p output/s905gen3/build/linux-6.6.56/drivers/hid/hid-core.c                   # hidraw antes de hidinput = parche 005
+unsquashfs -cat $D/boot_tvbox-gen3/boot/batocera etc/bluetooth/main.conf | grep -E 'FastConnectable|MultiProfile'
+unsquashfs -cat $D/boot_tvbox-gen3/boot/batocera etc/modprobe.d/xpadneo-rgm.conf
+grep FDT $D/boot_tvbox-gen3/uEnv.txt                                   # h96-max
+sha256sum $D/images/tvbox-gen3/*.img.gz
+```
+
+La imagen sale en `output/s905gen3/images/batocera/images/tvbox-gen3/` con el
+nombre `batocera-s905gen3-tvbox-gen3-1.0-<fecha>.img.gz` (la fecha es la del
+build; dos builds el mismo día se pisan el nombre, comparar por sha256).
+Respaldo: `/mnt/DATOS20TB/RESPALDO IMAGENES RGM/Batocera RMG Images/tvbox-gen3/`
+y Google Drive (`rclone copy --drive-root-folder-id 1Va3xNZNEhsSIlcy0XSznKeX98hR6VHs6 ... gdrive:`).
+
+Flashear: `sudo /home/retrogamex/flash-sd.sh /dev/sdX` (dd + fsync + verificación
+de md5 de `/boot`). Con lectores USB 3 genéricos la escritura sostenida puede
+resetear el lector (`usb 2-2: reset SuperSpeed`, `I/O error`): probar puerto
+USB 2.0 u otro lector. Tras `dd`, esperar la línea final (~20 MB/s reales); la
+de "360 MB/s" es solo caché. El número de jugador lo asigna Batocera por orden
+de conexión, no por el nombre Bluetooth del mando.
+
+Historial de imágenes 2026-09:
+
+| Imagen | Contenido | sha256 |
+|--------|-----------|--------|
+| `20260912` | base rgm, sin parche hid-sony 004 (SHANWAN parpadean) | — |
+| `20260918` | + h96-max por defecto, splash RGM, parche 004 hid-sony | — |
+| `20260919` 08:18 | + `xpadneo-rgm.conf` | `6116017f…` |
+| `20260919` 13:46 | + bluetooth `main.conf` (6e41b04), kernel con parche 005 hidraw | `975d8401…` |
+| `20260920` | + bluez parche 004 (record HID antes del agente) — **cable pairing en una pasada** | `9b58344a…` |
