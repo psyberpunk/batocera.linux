@@ -24,6 +24,12 @@ define BATOCERA_SYSTEM_INSTALL_TARGET_CMDS
 	# datainit
 	mkdir -p $(TARGET_DIR)/usr/share/batocera/datainit/system
 	cp $(BATOCERA_SYSTEM_PKGDIR)/batocera.conf $(TARGET_DIR)/usr/share/batocera/datainit/system
+	# board defaults that batocera-launch only reads from batocera.conf
+	if test -f $(BATOCERA_SYSTEM_PKGDIR)/sysconfigs/$(BATOCERA_ARCH)/batocera.conf; then \
+		printf '\n## Board defaults ($(BATOCERA_ARCH))\n' >> $(TARGET_DIR)/usr/share/batocera/datainit/system/batocera.conf; \
+		grep -E '^[a-z0-9_.]+=' $(BATOCERA_SYSTEM_PKGDIR)/sysconfigs/$(BATOCERA_ARCH)/batocera.conf \
+			>> $(TARGET_DIR)/usr/share/batocera/datainit/system/batocera.conf; \
+	fi
 
 	# sysconfigs (default batocera.conf for boards)
 	mkdir -p $(TARGET_DIR)/usr/share/batocera/sysconfigs
