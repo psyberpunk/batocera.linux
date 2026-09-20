@@ -43,6 +43,46 @@ _reconfigure_labwc() {
     fi
 }
 
+# Apply a mode with wlr-randr and make sure it actually sticks.
+# At boot, emulationstation-standalone runs setOutput (which triggers an
+# asynchronous labwc reconfigure and "--on --preferred") and then setMode right
+# after; the reconfigure can land after our request and put the output back to
+# its preferred mode, so wlr-randr reports success but the mode is lost.
+# Wait for the mode to be reported as current, re-check after a short settle,
+# and re-apply a few times if it was reverted.
+_set_mode_verified() {
+    local SCREEN="$1" MODE="$2"
+    local WANT_RES ATTEMPT TRY CUR_RES
+
+    WANT_RES=$(echo "${MODE}" | cut -d'@' -f1)
+    ATTEMPT=0
+    while [ "${ATTEMPT}" -lt 3 ]; do
+        ATTEMPT=$((ATTEMPT + 1))
+        if ! "${WLR_RANDR}" --output "${SCREEN}" --mode "${MODE}"; then
+            _log "_set_mode_verified: wlr-randr refused mode ${MODE} on ${SCREEN}."
+            return 1
+        fi
+        TRY=0
+        while [ "${TRY}" -lt 10 ]; do
+            CUR_RES=$(_get_current_mode_string "${SCREEN}" | cut -d'@' -f1)
+            if [ "${CUR_RES}" = "${WANT_RES}" ]; then
+                # a pending reconfigure may still revert it: settle and re-check
+                sleep 0.3
+                CUR_RES=$(_get_current_mode_string "${SCREEN}" | cut -d'@' -f1)
+                if [ "${CUR_RES}" = "${WANT_RES}" ]; then
+                    _log "_set_mode_verified: ${SCREEN} is now ${MODE} (attempt ${ATTEMPT})."
+                    return 0
+                fi
+                break
+            fi
+            sleep 0.1
+            TRY=$((TRY + 1))
+        done
+        _log "_set_mode_verified: mode ${MODE} did not stick on ${SCREEN} (current '${CUR_RES}'), attempt ${ATTEMPT}/3."
+    done
+    return 1
+}
+
 # Extract output block for a specific screen
 _get_screen_block() {
     local screen_name="$1"
@@ -237,14 +277,14 @@ f_minTomaxResolution() {
 
     if [ -n "${BEST_MODE}" ]; then
         _log "f_minTomaxResolution: Best mode found: ${BEST_MODE}. Setting it."
-        if "${WLR_RANDR}" --output "${PSCREEN}" --mode "${BEST_MODE}"; then
+        if _set_mode_verified "${PSCREEN}" "${BEST_MODE}"; then
             exit 0
         else
             _log "f_minTomaxResolution: Failed to set mode ${BEST_MODE}."
             BEST_RESOLUTION=$(echo "${BEST_MODE}" | cut -d'@' -f1)
             if [ "${BEST_MODE}" != "${BEST_RESOLUTION}" ]; then
                 _log "f_minTomaxResolution: Trying just resolution ${BEST_RESOLUTION}."
-                "${WLR_RANDR}" --output "${PSCREEN}" --mode "${BEST_RESOLUTION}"
+                _set_mode_verified "${PSCREEN}" "${BEST_RESOLUTION}"
             fi
         fi
     else
@@ -405,7 +445,7 @@ case "${ACTION}" in
                 if [ -z "${PARTHZ}" ]; then PARTHZ="0.000000"; fi
                 TARGET_MODE="${PARTRES}@${PARTHZ}Hz"
             fi
-            "${WLR_RANDR}" --output "${PSCREEN}" --mode "${TARGET_MODE}"
+            _set_mode_verified "${PSCREEN}" "${TARGET_MODE}"
         fi
         ;;
 
