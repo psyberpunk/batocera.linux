@@ -211,4 +211,12 @@ Historial de imágenes 2026-09:
 | `20260918` | + h96-max por defecto, splash RGM, parche 004 hid-sony | — |
 | `20260919` 08:18 | + `xpadneo-rgm.conf` | `6116017f…` |
 | `20260919` 13:46 | + bluetooth `main.conf` (6e41b04), kernel con parche 005 hidraw | `975d8401…` |
-| `20260920` | + bluez parche 004 (record HID antes del agente) — **cable pairing en una pasada** | `9b58344a…` |
+| `20260920` 04:30 | + bluez parche 004 (record HID antes del agente) — **cable pairing en una pasada** | `9b58344a…` |
+| `20260920-243e136c` 06:40 | + batocera-launch importa sin libX11 (los juegos arrancan) + tope 1080p (`sysconfigs/s905gen3`) | `243e136c…` |
+
+Convención desde 2026-09-20: en el respaldo y en Drive cada build se guarda
+como `batocera-s905gen3-tvbox-gen3-1.0-<fecha>-<sha256 corto>.img.gz` (y
+`boot-tvbox-gen3-1.0-<fecha>-<sha>.tar.xz`), porque buildroot nombra por
+fecha y dos builds el mismo día se pisan. Los `.md5`/`.sha256` llevan el
+nombre renombrado. Actualizar sin perder `/userdata`: copiar el
+`boot-…tar.xz` a `/userdata/system/upgrade/` y actualizar desde el menú.
