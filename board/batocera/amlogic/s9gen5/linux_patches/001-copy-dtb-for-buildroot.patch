@@ -1,0 +1,10 @@
+--- a/Makefile	2026-09-24 11:29:53.467717500 -0600
++++ b/Makefile	2026-09-24 11:29:53.476479608 -0600
+@@ -1537,6 +1537,7 @@
+ 
+ %.dtb: include/config/kernel.release scripts_dtc
+ 	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
++	$(Q)-cp -f $(dtstree)/$@ arch/$(SRCARCH)/boot/
+ 
+ %.dtbo: include/config/kernel.release scripts_dtc
+ 	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@

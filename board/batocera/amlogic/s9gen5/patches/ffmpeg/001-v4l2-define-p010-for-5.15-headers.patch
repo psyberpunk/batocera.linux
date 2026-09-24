@@ -1,0 +1,14 @@
+--- a/libavcodec/v4l2_fmt.c	2026-09-24 12:49:52.006921081 -0600
++++ b/libavcodec/v4l2_fmt.c	2026-09-24 12:49:52.016109060 -0600
+@@ -22,6 +22,11 @@
+  */
+ 
+ #include <linux/videodev2.h>
++
++/* s9gen5: 5.15 kernel headers predate V4L2_PIX_FMT_P010 (added in 6.1) */
++#ifndef V4L2_PIX_FMT_P010
++#define V4L2_PIX_FMT_P010 v4l2_fourcc('P', '0', '1', '0')
++#endif
+ #include <search.h>
+ #include "v4l2_fmt.h"
+ 

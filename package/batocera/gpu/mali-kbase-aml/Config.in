@@ -1,0 +1,10 @@
+config BR2_PACKAGE_MALI_KBASE_AML
+	bool "mali-kbase-aml"
+	depends on BR2_LINUX_KERNEL
+	depends on BR2_aarch64
+	help
+	  Mali Valhall r44p0 (CSF) kernel driver for Amlogic S7D/S6
+	  (Mali-G310), built out of tree against the Amlogic vendor
+	  kernel. Same sources and build options as CoreELEC.
+
+	  https://github.com/CoreELEC/gpu-aml

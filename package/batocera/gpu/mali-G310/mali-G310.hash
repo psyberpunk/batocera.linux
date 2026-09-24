@@ -1,0 +1,6 @@
+# Locally computed; identical to /usr/lib/libMali.valhall.g310.so on CoreELEC 22.0-Piers_beta2
+sha256  bbcc35ca4cf902a80535a31f7c36e6dd417dd7452a43f7b5e4600fc4ace0f906  libMali_g310_dmaheap.so
+sha256  da7a688117eeab7dc7373d5f3939154bdb37d02872b18c859a2f4da0aab2a3ee  mali-G310-309268f7a34ca0bba0ab94a0b09feb0191c77fb8.tar.gz
+sha256  a78acc73de9909efb879800d4daa4640c4aaa55cd751238a133954aba15e4285  END_USER_LICENCE_AGREEMENT.txt
+# From https://lists.freedesktop.org/archives/mesa-dev/2026-August/226694.html
+sha256  c47e81bddc4760360a41ac3c5acec38acb81f9d750ecef47e7f3adc7021a4442  mesa-26.2.1.tar.xz

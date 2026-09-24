@@ -1,0 +1,11 @@
+comment "rtl8733bs needs a Linux kernel to be built"
+	depends on !BR2_LINUX_KERNEL
+
+config BR2_PACKAGE_RTL8733BS
+	bool "rtl8733bs"
+	depends on BR2_LINUX_KERNEL
+	help
+	  Realtek RTL8733BS SDIO wifi driver, as found in Amlogic
+	  S905X5M (S7D) tv boxes. Same source as CoreELEC.
+
+	  https://github.com/smp79/rtl8733BS_WiFi_linux_v5.15.17-113
