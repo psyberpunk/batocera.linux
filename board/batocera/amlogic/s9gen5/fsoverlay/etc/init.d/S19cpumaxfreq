@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# S7D (S905X5M): the CPU clock is set by the firmware over SCMI and never
+# goes above 1.2 GHz here. Asking for more (schedutil does it on every load
+# spike) can leave the cluster at ~250 MHz, which makes game launches take
+# 30 s. Cap the policy at the highest rate that actually applies.
+
+case "$1" in
+    start|restart)
+        for p in /sys/devices/system/cpu/cpufreq/policy*; do
+            [ -w "$p/scaling_max_freq" ] && echo 1200000 > "$p/scaling_max_freq"
+        done
+        ;;
+esac
+
+exit 0

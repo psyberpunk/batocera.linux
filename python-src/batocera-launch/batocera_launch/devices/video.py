@@ -112,7 +112,10 @@ async def list_outputs(*, timeout: float | None = None) -> list[str]:
         _logger.exception('Failed to check display count')
         return []
 
-    return proc.stdout.split()
+    # One output per line. The drm backend prints "<card> - <name>" (e.g.
+    # "0 - HDMIA"): splitting on whitespace counted a single TV as three
+    # displays and cost a needless mouse reset on every launch.
+    return [line.rsplit(' - ', 1)[-1].strip() for line in proc.stdout.splitlines() if line.strip()]
 
 
 async def get_current_output() -> str:
