@@ -14,10 +14,12 @@ BINARIES_DIR=$4
 TARGET_DIR=$5
 BATOCERA_BINARIES_DIR=$6
 
-# DTB used by default: validated on the X96 M200 with CoreELEC 22
-DEFAULT_DTB=s7d_s905x5m_2g_1gbit.dtb
+# DTB used by default: the CoreELEC 2g_1gbit board with the S905A OPP tables
+# (validated on the X96 M200, CPU up to 2.5 GHz)
+DEFAULT_DTB=s7d_s905x5m_2g_1gbit_s905a.dtb
 
 DTBs=(
+    s7d_s905x5m_2g_1gbit_s905a.dtb
     s7d_s905a_bm221.dtb
     s7d_s905x5m_2g_1gbit.dtb
     s7d_s905x5m_2g.dtb

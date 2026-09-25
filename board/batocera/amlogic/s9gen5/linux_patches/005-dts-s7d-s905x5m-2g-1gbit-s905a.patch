@@ -1,0 +1,20 @@
+S905A-grade S7D boxes (X96 M200: Android reports ro.soc.model AMLS905A,
+board s7d_s905a_bm221) need the *_s905a OPP tables, like Amlogic's own
+s7d_s905a_bm221.dts. With the generic S905X5M tables the SCMI firmware
+keeps the CPU at 1.2 GHz (and requests above it can leave it at 250 MHz);
+with these it reaches 2.5 GHz as under Android. Everything else stays the
+s7d_s905x5m_2g_1gbit board, which is the one validated on the box.
+
+--- /dev/null
++++ b/common_drivers/arch/arm64/boot/dts/amlogic/s7d_s905x5m_2g_1gbit_s905a.dts
+@@ -0,0 +1,10 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++
++#include "s7d_s905x5m_2g_1gbit.dts"
++
++&CPU0 {
++	operating-points-v2 = <&cpu_opp_table0_s905a>,
++				<&cpu_opp_table1_s905a>,
++				<&cpu_opp_table2_s905a>,
++				<&cpu_opp_table3_s905a>;
++};
