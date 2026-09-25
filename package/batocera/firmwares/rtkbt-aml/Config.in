@@ -1,0 +1,8 @@
+config BR2_PACKAGE_RTKBT_AML
+	bool "rtkbt-aml"
+	help
+	  Realtek UART bluetooth for Amlogic tv boxes (RTL8733BS and
+	  friends): rtk_hciattach H5 loader with CoreELEC's patches plus
+	  the firmware from CoreELEC/rtkbt-firmware-aml.
+
+	  https://github.com/CoreELEC/rtkbt-firmware-aml

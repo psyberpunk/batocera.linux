@@ -1,0 +1,4 @@
+# From CoreELEC projects/Amlogic-ce/packages/tools/rtk_hciattach/package.mk
+sha256  6c5908e4e07fe4a74c54f5b58f01bdbeffc2aa2f8b529c5f32ce897e087edf7a  rtkbt-aml-3d0ed39cfdd24343715057e93134cd63b7321827.tar.gz
+# Locally computed
+sha256  d5821fb638652e95632e6e22275234cb0b07d467eb238065fac9769750a01275  492de5f2c6afbe51cb0ed120373ccdc4b0f36982.tar.gz

@@ -1,0 +1,73 @@
+HID: core: register hidraw before hidinput
+
+The bluez sixaxis plugin does the PS3 cable pairing from userspace: on the
+hidraw udev event it reads the pad's own Bluetooth address with a feature
+report ioctl and writes the host address back. It only gets to do that while
+the pad is still on the USB bus.
+
+Some PS3 clones give a very short window. Measured on a S905X3 box with a
+clone that announces itself as "Nintendo Co., Ltd. USB Gamepad" (054C:0268):
+the pad re-enumerates itself as 045E:028E (X-input) 120 ms after it appears,
+every single time.
+
+hid_connect() runs hidinput_connect() first, and for these pads that calls
+sony_input_configured(), which serialises two GET_REPORT feature transfers,
+the motion sensor input device, four LED classdevs, the battery probe with
+hid_hw_open() and force feedback setup - all before hidraw_connect() gets to
+register the char device. That pushes the hidraw node out to ~91 ms and
+leaves bluez ~25 ms of the pad's 120 ms window:
+
+  hid-sony      enum -> hidraw 91.3 ms (mean of 8)  ->  25 ms left
+  hid-generic   enum -> hidraw 27.0 ms (mean of 5)  ->  94 ms left
+
+  bluez cable pairing succeeded 2 of 8 times with hid-sony, 5 of 5 with
+  hid-generic
+
+Without the pairing record bluez then refuses the pad's incoming Bluetooth
+connection ("Refusing connection: unknown device"), so the pad has to be
+paired by hand through the Bluetooth menu - which is not an option on a box
+whose settings are locked.
+
+hidraw_connect() only allocates a minor and creates the char device. It does
+not touch hdev->claimed for input, hidinput, or any hid_hw_* state, so it can
+run first. Doing so hands the hidraw node to userspace at hid-generic speed
+while keeping hid-sony bound, with its LEDs, rumble and sensors intact.
+
+Two consequences, both benign:
+  - HID_CLAIMED_HIDRAW is set before hidinput_connect() runs, so an input
+    report arriving in between reaches hidraw readers. hidinput_report_event()
+    is still skipped because HID_CLAIMED_INPUT is not set yet.
+  - The hidrawN uevent now precedes the inputN one. No batocera udev rule
+    looks up an input sibling from a hidraw event.
+
+hid_disconnect() tears down in the order hidinput, hiddev, hidraw and does not
+need to change. The "input,hiddev96,hidraw0" line is built from the claimed
+mask in a fixed order, so its text is unchanged.
+
+diff --git a/drivers/hid/hid-core.c b/drivers/hid/hid-core.c
+--- a/drivers/hid/hid-core.c
++++ b/drivers/hid/hid-core.c
+@@ -2190,6 +2190,14 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
+ 	if (hid_hiddev(hdev))
+ 		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
+ 
++	/*
++	 * Register hidraw first: it is cheap, and a driver's ->input_configured
++	 * can be slow enough (hid-sony on a USB Sixaxis) that userspace misses a
++	 * short-lived device entirely.
++	 */
++	if ((connect_mask & HID_CONNECT_HIDRAW) && !hidraw_connect(hdev))
++		hdev->claimed |= HID_CLAIMED_HIDRAW;
++
+ 	if ((connect_mask & HID_CONNECT_HIDINPUT) && !hidinput_connect(hdev,
+ 				connect_mask & HID_CONNECT_HIDINPUT_FORCE))
+ 		hdev->claimed |= HID_CLAIMED_INPUT;
+@@ -2198,8 +2206,6 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
+ 			!hdev->hiddev_connect(hdev,
+ 				connect_mask & HID_CONNECT_HIDDEV_FORCE))
+ 		hdev->claimed |= HID_CLAIMED_HIDDEV;
+-	if ((connect_mask & HID_CONNECT_HIDRAW) && !hidraw_connect(hdev))
+-		hdev->claimed |= HID_CLAIMED_HIDRAW;
+ 
+ 	if (connect_mask & HID_CONNECT_DRIVER)
+ 		hdev->claimed |= HID_CLAIMED_DRIVER;

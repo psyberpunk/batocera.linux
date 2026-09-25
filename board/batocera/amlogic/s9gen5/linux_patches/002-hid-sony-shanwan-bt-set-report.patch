@@ -1,0 +1,36 @@
+HID: sony: treat SHANWAN PS3 clones as official Sixaxis over Bluetooth
+
+Kernel 4.9 (what these boxes ran under EmuELEC, where 4 clones pair fine)
+has no SHANWAN_GAMEPAD quirk: every 054C:0268 clone uses the standard
+Sixaxis path, LED/rumble output goes out as a control-channel SET_REPORT,
+and the pads keep a fixed player LED and stay connected.
+
+6.6 added SHANWAN_GAMEPAD, which for pads named "SHANWAN PS3 GamePad"
+pushes the output report down the interrupt channel. The RGM clones choke
+on that over Bluetooth: the 4 LEDs blink instead of showing the player
+number and the pad powers itself off ~1-2 s after connecting. The
+interrupt-channel output is only needed on USB; over BT the pad already
+carries SIXAXIS_CONTROLLER_BT, so skip the quirk there.
+
+diff --git a/drivers/hid/hid-sony.c b/drivers/hid/hid-sony.c
+index ebc0aa4..2a02968 100644
+--- a/drivers/hid/hid-sony.c
++++ b/drivers/hid/hid-sony.c
+@@ -2066,8 +2066,15 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
+ 	if (!strcmp(hdev->name, "FutureMax Dance Mat"))
+ 		quirks |= FUTUREMAX_DANCE_MAT;
+ 
+-	if (!strcmp(hdev->name, "SHANWAN PS3 GamePad") ||
+-	    !strcmp(hdev->name, "ShanWan PS(R) Ga`epad"))
++	/*
++	 * The SHANWAN quirk routes output reports over the interrupt channel,
++	 * which these PS3 clones reject over Bluetooth (blinking LEDs, link
++	 * drops). Only apply it on USB; over BT let them be plain Sixaxis,
++	 * exactly as on the 4.9 kernel these boxes shipped with.
++	 */
++	if ((!strcmp(hdev->name, "SHANWAN PS3 GamePad") ||
++	     !strcmp(hdev->name, "ShanWan PS(R) Ga`epad")) &&
++	    !(quirks & SIXAXIS_CONTROLLER_BT))
+ 		quirks |= SHANWAN_GAMEPAD;
+ 
+ 	sc = devm_kzalloc(&hdev->dev, sizeof(*sc), GFP_KERNEL);

@@ -57,6 +57,14 @@ case "$1" in
                     fi
                     sleep 2 # Give hciattach a few seconds to finish attaching firmware
                 ;;
+                rtk8733bs)
+                    # s9gen5 (S905X5M tv boxes): Realtek RTL8733BS, BT on UART1 (H5),
+                    # firmware loaded by the userspace rtk_hciattach (as in CoreELEC)
+                    if grep -qs "0xb733" /sys/bus/sdio/devices/*/device; then
+                        /usr/bin/rtk_hciattach -n -s 115200 /dev/ttyS1 rtk_h5 &
+                        sleep 3 # Give rtk_hciattach a few seconds to load the firmware
+                    fi
+                ;;
                 rtk115)
                     /usr/bin/hciattach -n /dev/ttyS0 rtk_h5 115200 & # specific to Tinkerboard
                     sleep 2 # Give hciattach a few seconds to finish attaching firmware
