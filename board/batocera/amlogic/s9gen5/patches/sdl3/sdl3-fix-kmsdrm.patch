@@ -1,14 +1,23 @@
---- a/src/video/kmsdrm/SDL_kmsdrmvideo.c	2026-09-25 11:54:40.709193863 -0600
-+++ b/src/video/kmsdrm/SDL_kmsdrmvideo.c	2026-09-25 11:54:40.711488403 -0600
-@@ -1775,7 +1775,10 @@
+--- a/src/video/kmsdrm/SDL_kmsdrmvideo.c	2026-06-12 08:26:51.000000000 -0600
++++ b/src/video/kmsdrm/SDL_kmsdrmvideo.c	2026-09-25 14:37:13.887656819 -0600
+@@ -1775,7 +1775,7 @@
      SDL_VideoDisplay *display = SDL_GetVideoDisplayForWindow(window);
      SDL_DisplayData *dispdata = display->internal;
  
 -    uint32_t surface_fmt = GBM_FORMAT_ARGB8888;
-+    /* Mali blobs only expose XR24/AB24 EGL visuals: XRGB8888 when no
-+     * alpha is asked for, ABGR8888 otherwise (e.g. FNA, which requests an
-+     * RGBA8888 backbuffer). */
-+    uint32_t surface_fmt = _this->gl_config.alpha_size > 0 ? GBM_FORMAT_ABGR8888 : GBM_FORMAT_XRGB8888;
++    uint32_t surface_fmt = GBM_FORMAT_XRGB8888;
      uint32_t surface_flags = GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING;
  
      EGLContext egl_context;
+@@ -1817,6 +1817,11 @@
+     /* We can't get the EGL context yet because SDL_CreateRenderer has not been called,
+        but we need an EGL surface NOW, or GL won't be able to render into any surface
+        and we won't see the first frame. */
++    /* The Mali blob has no XR24 EGL config with alpha, and its AB24 configs
++     * come out with red and blue swapped on the Amlogic OSD. The window's
++     * backbuffer alpha is never shown on a KMS plane anyway, so drop the
++     * request (FNA asks for RGBA8888) instead of failing to find a config. */
++    _this->gl_config.alpha_size = 0;
+     SDL_EGL_SetRequiredVisualId(_this, surface_fmt);
+     windata->egl_surface = SDL_EGL_CreateSurface(_this, window, (NativeWindowType)windata->gs);
+ 
