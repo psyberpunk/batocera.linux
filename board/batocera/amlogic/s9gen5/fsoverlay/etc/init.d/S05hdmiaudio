@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# S7D (S905X5M): Batocera plays on AML-AUGESOUND device 0 (SPDIF-B), but
+# the HDMI transmitter takes its audio from SPDIF (A) by default, so the
+# TV gets silence. Route SPDIF-B to HDMI.
+
+case "$1" in
+    start|restart)
+        amixer -q -c 0 cset name='HDMITX Audio Source Select' 'Spdif_b' 2>/dev/null
+        ;;
+esac
+
+exit 0
