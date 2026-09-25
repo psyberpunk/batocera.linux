@@ -135,6 +135,17 @@ do_videostart ()
         # gpu-next should handle the scaling
         drm_mode="${video_resize%%.*}"
     fi
+    # es.resolution may be a cap such as "max-1920x1080" (s905gen3, s9gen5),
+    # which mpv rejects ("Invalid value for option drm-mode") and then shows
+    # no splash at all: use that size if the display offers it, else preferred
+    # (mode names are driver specific, e.g. "1080p60hz", so match mpv's
+    # "(WxH@R)" part rather than the name)
+    case "$drm_mode" in
+        max-*|min-*)
+            drm_mode="${drm_mode#*-}"
+            mpv --drm-mode=help 2>/dev/null | grep -q "(${drm_mode}@" || drm_mode="preferred"
+            ;;
+    esac
 
     video_subtitle=$(batocera-settings-get splash.screen.subtitle)
     if [[ $? -eq 0 ]]; then
