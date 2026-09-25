@@ -43,7 +43,10 @@ BR2_TARGET_ROOTFS_SQUASHFS4_ZSTD=y
 # GPU: Mali-G310 binary driver (no mesa, panthor needs a 6.10+ kernel)
 BR2_PACKAGE_MALI_G310=y
 BR2_PACKAGE_MALI_KBASE_AML=y
-BR2_PACKAGE_BATOCERA_WAYLAND_LABWC=y
+# No compositor: the CoreELEC blob works as a GBM/KMS client (labwc itself
+# runs fine on it) but crashes inside libwayland-client as a Wayland EGL
+# client, so EmulationStation and the emulators draw straight to KMS/GBM
+# like s9gen4 (SDL kmsdrm patched to XRGB8888, see patches/sdl2 and sdl3).
 # gstreamer GL elements (BATOCERA_VIDEO_CODECS selects the sub options)
 BR2_PACKAGE_GST1_PLUGINS_BASE_LIB_OPENGL=y
 
@@ -58,6 +61,7 @@ BR2_PACKAGE_HOST_DOSFSTOOLS=y
 BR2_PACKAGE_HOST_GENIMAGE=y
 BR2_PACKAGE_HOST_MTOOLS=y
 BR2_PACKAGE_HOST_UBOOT_TOOLS=y
+BR2_PACKAGE_HOST_ZSTD=y
 
 # choices can be put in _defconfig files only
 BR2_PACKAGE_BATOCERA_SPLASH_MPV=y

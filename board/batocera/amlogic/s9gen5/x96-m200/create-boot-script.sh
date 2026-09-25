@@ -28,10 +28,13 @@ DTBs=(
 mkdir -p "${BATOCERA_BINARIES_DIR}/boot/boot"         || exit 1
 mkdir -p "${BATOCERA_BINARIES_DIR}/boot/device_trees" || exit 1
 
-# Android boot image (kernel + initramfs) for the stock Amlogic u-boot bootm
+# Android boot image (kernel + initramfs) for the stock Amlogic u-boot bootm.
+# The S7D u-boot only takes a zstd ramdisk here (a gzip one makes bootm
+# fail and fall back to Android), as in CoreELEC's kernel.img.
+gzip -dc "${BINARIES_DIR}/initrd.gz" | "${HOST_DIR}/bin/zstd" -q -3 -f -o "${BINARIES_DIR}/initrd.zst" || exit 1
 python3 "${BOARD_DIR}/mkbootimg.py" \
     --kernel  "${BINARIES_DIR}/Image.lzo" \
-    --ramdisk "${BINARIES_DIR}/initrd.gz" \
+    --ramdisk "${BINARIES_DIR}/initrd.zst" \
     --output  "${BATOCERA_BINARIES_DIR}/boot/kernel.img" || exit 1
 
 cp "${BINARIES_DIR}/rootfs.squashfs" "${BATOCERA_BINARIES_DIR}/boot/boot/batocera.update"         || exit 1
@@ -44,6 +47,10 @@ done
 cp "${BINARIES_DIR}/${DEFAULT_DTB}" "${BATOCERA_BINARIES_DIR}/boot/dtb.img" || exit 1
 
 cp "${BOARD_DIR}/boot/README.txt" "${BATOCERA_BINARIES_DIR}/boot/" || exit 1
+# This u-boot does not run scripts (source/autoscr): the CoreELEC bootcmd
+# only uses cfgload to detect the card, then "env import"s cfgload_env and
+# runs its ceboot.
+cp "${BOARD_DIR}/boot/cfgload_env" "${BATOCERA_BINARIES_DIR}/boot/" || exit 1
 
 "${HOST_DIR}/bin/mkimage" -A arm64 -O linux -T script -C none -d "${BOARD_DIR}/boot/aml_autoscript.txt" "${BATOCERA_BINARIES_DIR}/boot/aml_autoscript" || exit 1
 "${HOST_DIR}/bin/mkimage" -A arm64 -O linux -T script -C none -d "${BOARD_DIR}/boot/cfgload.txt"        "${BATOCERA_BINARIES_DIR}/boot/cfgload"        || exit 1

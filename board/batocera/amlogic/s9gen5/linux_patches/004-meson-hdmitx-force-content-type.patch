@@ -1,0 +1,14 @@
+From a3gen2 102-meson-hdmitx-force-content-type.patch: wlroots/labwc commits
+fail with "meson_hdmitx_atomic_check: check content type[1-1] fail",
+so accept whatever content type the new connector state asks for.
+
+--- a/common_drivers/drivers/drm/meson_hdmi.c	2026-09-25 11:32:59.207092815 -0600
++++ b/common_drivers/drivers/drm/meson_hdmi.c	2026-09-25 11:32:59.214757486 -0600
+@@ -1156,6 +1156,7 @@
+ 	}
+ 
+ 	/*check content type.*/
++	hdmitx_content_type = (1 << new_hdmitx_state->base.content_type);
+ 	if (((1 << new_hdmitx_state->base.content_type) &
+ 		hdmitx_content_type) == 0) {
+ 		DRM_ERROR("[%s] check content type[%d-%u] fail\n",

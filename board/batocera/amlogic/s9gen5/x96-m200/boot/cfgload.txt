@@ -1,14 +1,11 @@
 echo "Batocera: using device ${device}, number ${devnr}, partition ${partnr}"
 
-# Based on CoreELEC Generic_cfgload (Amlogic-no). The stock u-boot has already
-# put the vendor display/logo arguments in ${bootargs} (storeargs); keep them.
 setenv vout "1080p60hz"
 setenv frac_rate_policy "0"
 setenv consoleopt "console=tty3 no_console_suspend vt.global_cursor_default=0"
 setenv rootopt "label=RETROGAMERS rootwait"
 setenv batoceraopt "quiet loglevel=0"
 
-# optional user overrides (same syntax as CoreELEC config.ini)
 if fatload ${device} ${devnr}:${partnr} ${loadaddr} resolution.ini; then env import -t ${loadaddr} ${filesize}; fi
 if fatload ${device} ${devnr}:${partnr} ${loadaddr} config.ini; then env import -t ${loadaddr} ${filesize}; fi
 
