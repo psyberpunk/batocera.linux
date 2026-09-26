@@ -53,6 +53,11 @@ cp "${BOARD_DIR}/boot/README.txt" "${BATOCERA_BINARIES_DIR}/boot/" || exit 1
 # only uses cfgload to detect the card, then "env import"s cfgload_env and
 # runs its ceboot.
 cp "${BOARD_DIR}/boot/cfgload_env" "${BATOCERA_BINARIES_DIR}/boot/" || exit 1
+# With the reset button held, u-boot boots recovery.img from the card: this
+# CoreELEC (22.0-Piers_beta2, aml_recovery) mini system fw_setenv's the
+# aml_autoscript lines and reboots. Without it the box falls to Android
+# recovery and never learns to boot from the card.
+cp "${BOARD_DIR}/boot/recovery.img" "${BATOCERA_BINARIES_DIR}/boot/" || exit 1
 
 "${HOST_DIR}/bin/mkimage" -A arm64 -O linux -T script -C none -d "${BOARD_DIR}/boot/aml_autoscript.txt" "${BATOCERA_BINARIES_DIR}/boot/aml_autoscript" || exit 1
 "${HOST_DIR}/bin/mkimage" -A arm64 -O linux -T script -C none -d "${BOARD_DIR}/boot/cfgload.txt"        "${BATOCERA_BINARIES_DIR}/boot/cfgload"        || exit 1
