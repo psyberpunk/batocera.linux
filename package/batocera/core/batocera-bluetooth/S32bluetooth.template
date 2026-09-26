@@ -65,6 +65,18 @@ case "$1" in
                     # hci_uart is not autoloaded for the line discipline.
                     if grep -qs "^8733bs " /proc/modules; then
                         modprobe hci_uart
+                        # Once loaded, the firmware runs the UART at 1.5 Mbaud and a
+                        # new rtk_hciattach (restart) gets no H5 sync: power-cycle
+                        # the BT half through the Amlogic "bt-dev" rfkill first.
+                        # Shorter delays are not enough for this chip.
+                        if [ -e /var/run/rtk8733bs.loaded ]; then
+                            for r in /sys/class/rfkill/rfkill*; do
+                                [ "$(cat "$r/name" 2>/dev/null)" = "bt-dev" ] || continue
+                                echo 0 > "$r/state"; sleep 3
+                                echo 1 > "$r/state"; sleep 5
+                            done
+                        fi
+                        touch /var/run/rtk8733bs.loaded
                         /usr/bin/rtk_hciattach -n -s 115200 /dev/ttyS1 rtk_h5 &
                         # firmware download takes a few seconds
                         for w in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
