@@ -60,9 +60,17 @@ case "$1" in
                 rtk8733bs)
                     # s9gen5 (S905X5M tv boxes): Realtek RTL8733BS, BT on UART1 (H5),
                     # firmware loaded by the userspace rtk_hciattach (as in CoreELEC)
-                    if grep -qs "0xb733" /sys/bus/sdio/devices/*/device; then
+                    # The Amlogic SDIO host does not list the card under
+                    # /sys/bus/sdio, so key on the WiFi half's module instead.
+                    # hci_uart is not autoloaded for the line discipline.
+                    if grep -qs "^8733bs " /proc/modules; then
+                        modprobe hci_uart
                         /usr/bin/rtk_hciattach -n -s 115200 /dev/ttyS1 rtk_h5 &
-                        sleep 3 # Give rtk_hciattach a few seconds to load the firmware
+                        # firmware download takes a few seconds
+                        for w in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+                            [ -e /sys/class/bluetooth/hci0 ] && break
+                            sleep 1
+                        done
                     fi
                 ;;
                 rtk115)
@@ -165,6 +173,7 @@ case "$1" in
         rm -f /var/run/bluetooth-agent.pid /var/run/bluetoothd.pid
         killall hciattach >/dev/null 2>&1
         killall hciattach_opi >/dev/null 2>&1
+        killall rtk_hciattach >/dev/null 2>&1
         killall brcm_patchram_plus >/dev/null 2>&1
         batocera-bluetooth save
     ;;
